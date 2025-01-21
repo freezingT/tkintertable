@@ -98,6 +98,8 @@ class TableModel(object):
         #default types
         self.defaulttypes = ['text', 'number']
         #list of editable column types
+        self.multilinerows=set()
+        self.multilinecolumns=set()
         self.editable={}
         self.nodisplay = []
         self.columnwidths={} 

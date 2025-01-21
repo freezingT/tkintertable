@@ -47,6 +47,9 @@ import math, time
 import os, types
 import copy
 import platform
+import numpy as np
+from bisect import bisect_left
+from collections import defaultdict
 
 class TableCanvas(Canvas):
     """A tkinter class for providing table functionality"""
@@ -109,6 +112,7 @@ class TableCanvas(Canvas):
         self.columnactions = {'text' : {"Edit":  'drawCellEntry' },
                               'number' : {"Edit": 'drawCellEntry' }}
         self.setFontSize()
+        self.initFontSizeTable()
         return
 
     def set_defaults(self):
@@ -144,6 +148,19 @@ class TableCanvas(Canvas):
         if hasattr(self, 'thefont') and type(self.thefont) is tuple:
             self.fontsize = self.thefont[1]
         return
+
+    def initFontSizeTable(self):
+        symbols = list(map(lambda x: chr(x), range(255)))
+        def constant_factory(c):
+            return lambda: c
+        symbol_sizes = defaultdict()
+        for sym in symbols:
+            txttmp = self.create_text(50, 50, text=sym)
+            size = self.bbox(txttmp)
+            symbol_sizes[sym] = size[2]-size[0]
+            self.delete(txttmp)
+        symbol_sizes.default_factory = constant_factory(np.median(list(symbol_sizes.values())))
+        self.fontSizeTable = symbol_sizes
 
     def mouse_wheel(self, event):
         """Handle mouse wheel scroll for windows"""
@@ -907,6 +924,29 @@ class TableCanvas(Canvas):
         """Set the row height"""
         self.rowheight = h
         return
+    
+    def setRowMultiline(self, rowId=None, isMultiline=True):
+        if rowId is None:
+            rowId = self.currentrow
+        if isMultiline:
+            self.model.multilinerows.add(rowId)
+        else:
+            self.model.multilinerows.discard(rowId)
+
+    def setColumnMultiline(self, columnName=None, isMultiline=True):
+        if columnName is None:
+            columnName = self.get_currentColName()
+        if isMultiline:
+            self.model.multilinerows.add(columnName)
+        else:
+            self.model.multilinerows.discard(columnName)
+
+    def isMultiline(self, rowId=None, columnName=None):
+        if rowId is None:
+            rowId = self.currentrow
+        if columnName is None:
+            columnName = self.get_currentColName()
+        return rowId in self.model.multilinerows or columnName in self.model.multilinecolumns
 
     def clearSelected(self):
         self.delete('rect')
@@ -1721,6 +1761,27 @@ class TableCanvas(Canvas):
             return 1
         return 1
 
+    def estimateWordLength(self, word: str):
+        if len(word) == 0:
+            return 0
+        lens = list(map(lambda x: self.fontSizeTable[x], word))
+        return sum(lens)-(len(word)-1)*2
+    
+    def estimateWordLengthCumulated(self, word: str):
+        if len(word) == 0:
+            return []
+        lens = list(map(lambda x: self.fontSizeTable[x]-2, word))
+        lens[0] += 2
+        return np.cumsum(lens)
+
+    def truncateToWidth(self, word: str, width):
+        llist = self.estimateWordLengthCumulated(word)
+        if bisect_left(llist, width) < len(word):
+            idx = bisect_left(llist, width-3*(self.fontSizeTable['.']-2))
+            return word[:idx]+"..."
+        else:
+            return word
+
     def drawText(self, row, col, celltxt, fgcolor=None, align=None):
         """Draw the text inside a cell area"""
 
@@ -1754,13 +1815,15 @@ class TableCanvas(Canvas):
         else:
             fontsize = self.fontsize
             colname = self.model.getColumnName(col)
-            #scaling between canvas and text normalised to about font 14
             scale = 8.5 * float(fontsize)/12
-            size = length * scale
-            if size > w:
-                newlength = w / scale
-                #print w, size, length, newlength
-                celltxt = celltxt[0:int(math.floor(newlength))]
+            celltxt = self.truncateToWidth(celltxt, w-8)
+            ##scaling between canvas and text normalised to about font 14
+            #scale = 8.5 * float(fontsize)/12
+            #size = length * scale
+            #if size > w:
+            #    newlength = w / scale
+            #    #print w, size, length, newlength
+            #    celltxt = celltxt[0:int(math.floor(newlength))]
 
         #if celltxt is dict then we are drawing a hyperlink
         if self.isLink(celltxt) == True:
