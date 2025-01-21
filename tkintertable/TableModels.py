@@ -100,7 +100,8 @@ class TableModel(object):
         #list of editable column types
         self.editable={}
         self.nodisplay = []
-        self.columnwidths={}  #used to store col widths, not held in saved data
+        self.columnwidths={} 
+        self.rowheights={} #used to store col widths, not held in saved data
         return
 
     def createEmptyModel(self):

@@ -78,6 +78,7 @@ class TableCanvas(Canvas):
         self.multiplerowlist=[]
         self.multiplecollist=[]
         self.col_positions=[]       #record current column grid positions
+        self.row_positions=[] 
         self.mode = 'normal'
         self.read_only = read_only
         self.filtered = False
@@ -98,6 +99,7 @@ class TableCanvas(Canvas):
         self.rows = self.model.getRowCount()
         self.cols = self.model.getColumnCount()
         self.tablewidth = (self.cellwidth)*self.cols
+        self.tableheight = self.rowheight*self.rows
         self.do_bindings()
         #initial sort order
         self.model.setSortOrder()
@@ -267,12 +269,20 @@ class TableCanvas(Canvas):
         """Get current row from canvas position"""
 
         h = self.rowheight
-        y_start = self.y_start
-        row = (int(y)-y_start)/h
-        if row < 0:
-            return 0
-        if row > self.rows:
-            row = self.rows
+        #y_start = self.y_start
+        #row = (int(y)-y_start)/h
+        #if row < 0:
+        #    return 0
+        #if row > self.rows:
+        #    row = self.rows
+        #return row
+        i=0
+        row=0
+        for r in self.row_positions:
+            row = i
+            if r+h>=y:
+                break
+            i+=1
         return row
 
     def getColPosition(self, x):
@@ -315,8 +325,10 @@ class TableCanvas(Canvas):
         self.cols = self.model.getColumnCount()
 
         self.tablewidth = (self.cellwidth) * self.cols
+        self.tableheight = (self.rowheight) * self.rows
         self.configure(bg=self.bgcolor)
         self.setColPositions()
+        self.setRowPositions()
 
         #are we drawing a filtered subset of the recs?
         if self.filtered == True and self.model.filteredrecs != None:
@@ -325,7 +337,7 @@ class TableCanvas(Canvas):
 
         self.rowrange = range(0,self.rows)
         self.configure(scrollregion=(0,0, self.tablewidth+self.x_start,
-                self.rowheight*self.rows+10))
+                self.tableheight+self.y_start))
 
         x1, y1, x2, y2 = self.getVisibleRegion()
         startvisiblerow, endvisiblerow = self.getVisibleRows(y1, y2)
@@ -441,6 +453,22 @@ class TableCanvas(Canvas):
                 x_pos=x_pos+w
             self.col_positions.append(x_pos)
         self.tablewidth = self.col_positions[len(self.col_positions)-1]
+        return
+
+    def setRowPositions(self):
+        """Determine current row grid positions"""
+
+        self.row_positions=[]
+        h=self.rowheight
+        y_pos=self.y_start
+        self.row_positions.append(y_pos)
+        for row in range(self.rows):
+            if row in self.model.rowheights:
+                y_pos=y_pos+self.model.rowheights[row]
+            else:
+                y_pos=y_pos+h
+            self.row_positions.append(y_pos)
+        self.tableheight = self.row_positions[-1]
         return
 
     def sortTable(self, columnIndex=0, columnName=None, reverse=0):
@@ -704,6 +732,15 @@ class TableCanvas(Canvas):
         self.drawSelectedCol(self.currentcol)
         return
 
+    def resizeRow(self, row, height):
+        """Resize a row by dragging"""
+        
+        self.model.rowheights[row]=height
+        self.setRowPositions()
+        self.redrawTable()
+        self.drawSelectedRow(self.currentrow)
+        return
+
     def get_currentRecord(self):
         """Get the currently selected record"""
 
@@ -744,11 +781,14 @@ class TableCanvas(Canvas):
         #get coord on canvas, not window, need this if scrolling
         y = int(self.canvasy(event.y))
         y_start=self.y_start
-        rowc = int((int(y)-y_start)/h)
-        #rowc = math.floor(rowc)
-        #print 'event.y',event.y, 'y',y
-        #print 'rowclicked', rowc
-        return rowc
+
+        for idx, rowpos in enumerate(self.row_positions):
+            try:
+                nextpos = self.row_positions[idx+1]
+            except:
+                nextpos = self.tableheight
+            if y > rowpos and y <= nextpos:
+                return idx
 
     def get_col_clicked(self,event):
         """get col where event on canvas occurs"""
@@ -831,14 +871,17 @@ class TableCanvas(Canvas):
             w=self.model.columnwidths[colname]
         else:
             w=self.cellwidth
-        h=self.rowheight
+        if row in self.model.rowheights:
+            h=self.model.rowheights[row]
+        else:
+            h=self.rowheight
         x_start=self.x_start
         y_start=self.y_start
 
         #get nearest rect co-ords for that row/col
         #x1=x_start+w*col
         x1=self.col_positions[col]
-        y1=y_start+h*row
+        y1=self.row_positions[row]
         x2=x1+w
         y2=y1+h
         return x1,y1,x2,y2
@@ -849,12 +892,12 @@ class TableCanvas(Canvas):
             return None, None
         x1,y1,x2,y2 = self.getCellCoords(row,col)
         cx=float(x1)/self.tablewidth
-        cy=float(y1)/(self.rows*self.rowheight)
+        cy=float(y1)/self.tableheight
         return cx, cy
 
     def isInsideTable(self,x,y):
         """Returns true if x-y coord is inside table bounds"""
-        if self.x_start < x < self.tablewidth and self.y_start < y < self.rows*self.rowheight:
+        if self.x_start < x < self.tablewidth and self.y_start < y < self.tableheight:
             return 1
         else:
             return 0
@@ -1518,8 +1561,6 @@ class TableCanvas(Canvas):
         self.delete('gridline','text')
         rows=len(self.rowrange)
         cols=self.cols
-        w = self.cellwidth
-        h = self.rowheight
         x_start=self.x_start
         y_start=self.y_start
         x_pos=x_start
@@ -1527,11 +1568,11 @@ class TableCanvas(Canvas):
         if self.vertlines==1:
             for col in range(cols+1):
                 x=self.col_positions[col]
-                self.create_line(x,y_start,x,y_start+rows*h, tag='gridline',
+                self.create_line(x,y_start,x,self.tableheight, tag='gridline',
                                      fill=self.grid_color, width=self.linewidth)
         if self.horizlines==1:
             for row in range(startrow, endrow+1):
-                y_pos=y_start+row*h
+                y_pos=self.row_positions[row]
                 self.create_line(x_start,y_pos,self.tablewidth,y_pos, tag='gridline',
                                     fill=self.grid_color, width=self.linewidth)
         return
@@ -1762,11 +1803,12 @@ class TableCanvas(Canvas):
         except:
             return False
 
-    def drawSelectedRow(self):
+    def drawSelectedRow(self, row=None):
         """Draw the highlight rect for the currently selected row"""
 
         self.delete('rowrect')
-        row = self.currentrow
+        if row==None:
+            row = self.currentrow
         x1,y1,x2,y2 = self.getCellCoords(row,0)
         x2 = self.tablewidth
         rect = self.create_rectangle(x1,y1,x2,y2,
@@ -1779,7 +1821,7 @@ class TableCanvas(Canvas):
         return
 
     def drawSelectedCol(self, col=None, delete=1):
-        """Draw an outline rect fot the current column selection"""
+        """Draw an outline rect for the current column selection"""
 
         if delete == 1:
             self.delete('colrect')
@@ -1787,7 +1829,7 @@ class TableCanvas(Canvas):
             col=self.currentcol
         w=2
         x1,y1,x2,y2 = self.getCellCoords(0,col)
-        y2 = self.rows * self.rowheight
+        y2 = self.tableheight
         rect = self.create_rectangle(x1+w/2,y1+w/2,x2,y2+w/2,
                                      outline='blue',width=w,
                                      tag='colrect')
@@ -2283,6 +2325,15 @@ class TableCanvas(Canvas):
     def getGeometry(self, frame):
         """Get frame geometry"""
         return frame.winfo_rootx(), frame.winfo_rooty(), frame.winfo_width(), frame.winfo_height()
+    
+    @staticmethod
+    def within(val, l, d):
+        """Utility funtion to see if val is within d of any
+            items in the list l"""
+        for idx, v in enumerate(l):
+            if abs(val-v) <= d:
+                return idx
+        return -1
 
 class ColumnHeader(Canvas):
     """Class that takes it's size and rendering from a parent table
@@ -2291,6 +2342,8 @@ class ColumnHeader(Canvas):
     def __init__(self, parent=None, table=None):
         Canvas.__init__(self, parent, bg='gray25', width=500, height=20)
         self.thefont='Arial 14'
+        self.atdivider = -1
+
         if table != None:
             self.table = table
             self.height = 20
@@ -2442,13 +2495,6 @@ class ColumnHeader(Canvas):
     #             return 1
     #     return 0
     
-    def within(self, val, l, d):
-        """Utility funtion to see if val is within d of any
-            items in the list l"""
-        for idx, v in enumerate(l):
-            if abs(val-v) <= d:
-                return idx
-        return -1
 
     def handle_mouse_move(self, event):
         """Handle mouse moved in header, if near divider draw resize symbol"""
@@ -2464,7 +2510,7 @@ class ColumnHeader(Canvas):
         
         #if event x is within x pixels of divider, draw resize symbol
         if x!=x_start:
-            divider_idx = self.within(x, self.table.col_positions, 16)
+            divider_idx = self.table.within(x, self.table.col_positions, 2)
             if divider_idx > 0:
                 self.draw_resize_symbol(divider_idx-1)
                 self.atdivider = divider_idx-1
@@ -2586,6 +2632,7 @@ class RowHeader(Canvas):
 
     def __init__(self, parent=None, table=None, width=40):
         Canvas.__init__(self, parent, bg='gray75', width=width, height=None)
+        self.atrowdivider = -1
 
         if table != None:
             self.table = table
@@ -2600,29 +2647,36 @@ class RowHeader(Canvas):
             self.bind("<Control-Button-1>", self.handle_left_ctrl_click)
             self.bind('<Button-3>',self.handle_right_click)
             self.bind('<B1-Motion>', self.handle_mouse_drag)
+            self.bind('<Motion>', self.handle_mouse_move)
             #self.bind('<Shift-Button-1>', self.handle_left_shift_click)
         return
 
     def redraw(self, align='w', showkeys=False):
         """Redraw row header"""
 
-        self.height = self.table.rowheight * self.table.rows+10
+        rows = self.model.getRowCount()
+        self.height = self.table.tableheight #+10 ??
         self.configure(scrollregion=(0,0, self.width, self.height))
         self.delete('rowheader','text')
         self.delete('rect')
         w = float(self.width)
-        h = self.table.rowheight
         x = self.x_start+w/2
         if align == 'w':
             x = x-w/2+3
         elif align == 'e':
             x = x+w/2-3
+        if rows == 0:
+            return
         for row in self.table.visiblerows:
             if showkeys == True:
                 text = self.model.getRecName(row)
             else:
                 text = row+1
             x1,y1,x2,y2 = self.table.getCellCoords(row,0)
+            if row in self.model.rowheights:
+                h = self.model.rowheights[row]
+            else:
+                h = self.table.rowheight
             self.create_rectangle(0,y1,w-1,y2,
                                       fill='gray75',
                                       outline='white',
@@ -2659,7 +2713,25 @@ class RowHeader(Canvas):
         return
 
     def handle_left_release(self,event):
+        """When mouse released implement resize"""
 
+        self.delete('dragrect')
+        if self.atrowdivider >= 0:
+            y=int(self.canvasy(event.y))
+            #col = self.table.get_col_clicked(event)
+            #col = self.table.currentcol
+            row = self.atrowdivider
+            x1,y1,x2,y2 = self.table.getCellCoords(row, 0)
+            newheight= y-y1
+            if newheight < 7:
+                newheight=7
+            self.table.resizeRow(row, newheight)
+            self.table.delete('resizeline')
+            self.delete('resizeline')
+            self.delete('resizesymbol')
+            self.atrowdivider = -1
+            return
+        self.delete('resizesymbol')
         return
 
     def handle_left_ctrl_click(self, event):
@@ -2680,40 +2752,64 @@ class RowHeader(Canvas):
 
         return
 
-    '''def handle_mouse_drag(self, event):
-        """Handle mouse drag for mult row selection"""
-        rowover = self.table.get_row_clicked(event)
-        colover = self.table.get_col_clicked(event)
-        if colover == None or rowover == None:
-            return'''
-
     def handle_mouse_drag(self, event):
-        """Handle mouse moved with button held down, multiple selections"""
+        """Handle mouse moved with button held down, for either row resize or multirow selection"""
 
-        if hasattr(self, 'cellentry'):
-            self.cellentry.destroy()
-        rowover = self.table.get_row_clicked(event)
-        colover = self.table.get_col_clicked(event)
-        if rowover == None:
-            return
-        if rowover >= self.table.rows or self.startrow > self.table.rows:
+        if self.atrowdivider >= 0:
+            y=int(self.canvasy(event.y))
+            self.table.delete('resizeline')
+            self.delete('resizeline')
+            self.table.create_line(0, y, self.table.tableheight, y, 
+                                width=2, fill='gray', tag='resizeline')
+            self.create_line(0, y, self.width, y,
+                                width=2, fill='gray', tag='resizeline')
             return
         else:
-            self.endrow = rowover
-        #draw the selected rows
-        if self.endrow != self.startrow:
-            if self.endrow < self.startrow:
-                rowlist=range(self.endrow, self.startrow+1)
+            if hasattr(self, 'cellentry'):
+                self.cellentry.destroy()
+            rowover = self.table.get_row_clicked(event)
+            colover = self.table.get_col_clicked(event)
+            if rowover == None:
+                return
+            if rowover >= self.table.rows or self.startrow > self.table.rows:
+                return
             else:
-                rowlist=range(self.startrow, self.endrow+1)
-            self.drawSelectedRows(rowlist)
-            self.table.multiplerowlist = rowlist
-            self.table.drawMultipleRows(rowlist)
-        else:
-            self.table.multiplerowlist = []
-            self.table.multiplerowlist.append(rowover)
-            self.drawSelectedRows(rowover)
-            self.table.drawMultipleRows(self.table.multiplerowlist)
+                self.endrow = rowover
+            #draw the selected rows
+            if self.endrow != self.startrow:
+                if self.endrow < self.startrow:
+                    rowlist=range(self.endrow, self.startrow+1)
+                else:
+                    rowlist=range(self.startrow, self.endrow+1)
+                self.drawSelectedRows(rowlist)
+                self.table.multiplerowlist = rowlist
+                self.table.drawMultipleRows(rowlist)
+            else:
+                self.table.multiplerowlist = []
+                self.table.multiplerowlist.append(rowover)
+                self.drawSelectedRows(rowover)
+                self.table.drawMultipleRows(self.table.multiplerowlist)
+            return
+
+    def handle_mouse_move(self, event):
+        """Handle mouse moved in header, if near divider draw resize symbol"""
+
+        self.delete('resizesymbol')
+        h=self.height
+        y_start=self.table.y_start
+        y=int(self.canvasy(event.y))
+        if y > self.table.tableheight+h:
+            return
+        
+        #if event y is within y pixels of divider, draw resize symbol
+        if y!=y_start:
+            divider_idx = self.table.within(y, self.table.row_positions, 1)
+            if divider_idx > 0:
+                self.draw_row_resize_symbol(divider_idx-1)
+                self.atrowdivider = divider_idx-1
+                return
+
+        self.atrowdivider = -1
         return
 
     def drawSelectedRows(self, rows=None):
@@ -2730,6 +2826,22 @@ class RowHeader(Canvas):
                 continue
             self.drawRect(r, delete=0)
         return
+
+    def draw_row_resize_symbol(self, row):
+        """Draw a symbol to show that row can be resized when mouse here"""
+
+        self.delete('resizesymbol')
+        w=self.width
+        wdth=1
+        hfac1=0.2
+        hfac2=0.4
+        x_start=self.table.x_start
+        x1,y1,x2,y2 = self.table.getCellCoords(row,0)
+
+        self.create_polygon(w/2-6,y2-3, w/2,y2-9, w/2+6,y2-3, tag='resizesymbol',
+            fill='white', outline='gray', width=wdth)
+        self.create_polygon(w/2-6,y2+2, w/2,y2+8, w/2+6,y2+2, tag='resizesymbol',
+            fill='white', outline='gray', width=wdth)
 
     def drawRect(self, row=None, tag=None, color=None, outline=None, delete=1):
         """Draw a rect representing row selection"""
