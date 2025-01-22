@@ -102,8 +102,8 @@ class TableModel(object):
         self.multilinecolumns=set()
         self.editable={}
         self.nodisplay = []
-        self.columnwidths={} 
-        self.rowheights={} #used to store col widths, not held in saved data
+        self.columnwidths={} #used to store col widths, not held in saved data
+        self.rowheights={} 
         return
 
     def createEmptyModel(self):

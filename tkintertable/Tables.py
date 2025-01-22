@@ -119,8 +119,10 @@ class TableCanvas(Canvas):
         """Set default settings"""
 
         self.cellwidth=150
-        self.maxcellwidth=200
+        self.maxcellwidth=500
+        self.mincellwidth=22
         self.rowheight=20
+        self.minrowheight=20
         self.horizlines=1
         self.vertlines=1
         self.alternaterows=0
@@ -159,7 +161,7 @@ class TableCanvas(Canvas):
             size = self.bbox(txttmp)
             symbol_sizes[sym] = size[2]-size[0]
             self.delete(txttmp)
-        symbol_sizes.default_factory = constant_factory(np.median(list(symbol_sizes.values())))
+        symbol_sizes.default_factory = constant_factory(int(np.median(list(symbol_sizes.values()))))
         self.fontSizeTable = symbol_sizes
 
     def mouse_wheel(self, event):
@@ -385,11 +387,13 @@ class TableCanvas(Canvas):
                 if bgcolor != None:
                     self.drawRect(row,col, color=bgcolor)
 
-        #self.drawSelectedCol()
+        
         self.tablecolheader.redraw()
         self.tablerowheader.redraw(align=self.align, showkeys=self.showkeynamesinheader)
         #self.setSelectedRow(self.currentrow)
         self.drawSelectedRow()
+        if self.find_withtag('colrect') != ():
+            self.drawSelectedCol()
         self.drawSelectedRect(self.currentrow, self.currentcol)
         #print self.multiplerowlist
 
@@ -406,6 +410,15 @@ class TableCanvas(Canvas):
     def redraw(self, event=None, callback=None):
         self.redrawVisible(event, callback)
         return
+
+    def deletePopups(self):
+        if hasattr(self, 'rightmenu'):
+            self.rightmenu.destroy()
+        if hasattr(self.tablecolheader, 'rightmenu'):
+            self.tablecolheader.rightmenu.destroy()
+
+        if hasattr(self, 'cellentry'):
+            self.cellentry.destroy()
 
     def redrawCell(self, row=None, col=None, recname=None, colname=None):
         """Redraw a specific cell only"""
@@ -443,8 +456,10 @@ class TableCanvas(Canvas):
             if size < w:
                 continue
             #print col, size, self.cellwidth
-            if size >= self.maxcellwidth:
+            if size > self.maxcellwidth:
                 size = self.maxcellwidth
+            if size < self.mincellwidth:
+                size = self.mincellwidth
             self.model.columnwidths[colname] = size + float(fontsize)/12*6
         return
 
@@ -752,6 +767,8 @@ class TableCanvas(Canvas):
     def resizeRow(self, row, height):
         """Resize a row by dragging"""
         
+        if height < self.minrowheight:
+            height = self.minrowheight
         self.model.rowheights[row]=height
         self.setRowPositions()
         self.redrawTable()
@@ -922,6 +939,8 @@ class TableCanvas(Canvas):
 
     def setRowHeight(self, h):
         """Set the row height"""
+        if h < self.minrowheight:
+            h = self.minrowheight
         self.rowheight = h
         return
     
@@ -2509,9 +2528,11 @@ class ColumnHeader(Canvas):
             #col = self.table.currentcol
             col = self.atdivider
             x1,y1,x2,y2 = self.table.getCellCoords(0,col)
-            newwidth=x - x1
-            if newwidth < 5:
-                newwidth=5
+            newwidth = x-x1
+            if newwidth < self.table.mincellwidth:
+                newwidth = self.table.mincellwidth
+            if newwidth > self.table.maxcellwidth:
+                newwidth = self.table.maxcellwidth
             self.table.resizeColumn(col, newwidth)
             self.table.delete('resizeline')
             self.delete('resizeline')
@@ -2786,9 +2807,7 @@ class RowHeader(Canvas):
             row = self.atrowdivider
             x1,y1,x2,y2 = self.table.getCellCoords(row, 0)
             newheight= y-y1
-            if newheight < 7:
-                newheight=7
-            self.table.resizeRow(row, newheight)
+            self.table.resizeRow(row, newheight) # may use larger newheight if newheight < minrowheight
             self.table.delete('resizeline')
             self.delete('resizeline')
             self.delete('resizesymbol')
