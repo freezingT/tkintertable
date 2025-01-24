@@ -82,9 +82,12 @@ class TableCanvas(Canvas):
         self.multiplecollist=[]
         self.col_positions=[]       #record current column grid positions
         self.row_positions=[] 
+        self.minrowheights=defaultdict(lambda : self.minrowheight)
         self.mode = 'normal'
         self.read_only = read_only
         self.filtered = False
+        self.rowUpdateRequired = False
+        self.resetToMinRowHeight = False
 
         self.loadPrefs()
         #set any options passed in kwargs to overwrite defaults and prefs
@@ -123,6 +126,7 @@ class TableCanvas(Canvas):
         self.mincellwidth=22
         self.rowheight=20
         self.minrowheight=20
+        self.xpadding=5
         self.horizlines=1
         self.vertlines=1
         self.alternaterows=0
@@ -360,9 +364,9 @@ class TableCanvas(Canvas):
 
         x1, y1, x2, y2 = self.getVisibleRegion()
         startvisiblerow, endvisiblerow = self.getVisibleRows(y1, y2)
-        self.visiblerows = range(startvisiblerow, endvisiblerow)
+        self.visiblerows = range(max(0, startvisiblerow-1), min(self.rows, endvisiblerow+1))
         startvisiblecol, endvisiblecol = self.getVisibleCols(x1, x2)
-        self.visiblecols = range(startvisiblecol, endvisiblecol)
+        self.visiblecols = range(max(0, startvisiblecol-1), min(endvisiblecol+1, self.cols))
 
         if self.cols == 0 or self.rows == 0:
             self.delete('entry')
@@ -386,7 +390,7 @@ class TableCanvas(Canvas):
                 self.drawText(row, col, text, fgcolor, align)
                 if bgcolor != None:
                     self.drawRect(row,col, color=bgcolor)
-
+        self.rowUpdate()
         
         self.tablecolheader.redraw()
         self.tablerowheader.redraw(align=self.align, showkeys=self.showkeynamesinheader)
@@ -431,6 +435,7 @@ class TableCanvas(Canvas):
         fgcolor = self.model.getColorAt(row,col, 'fg')
         text = self.model.getValueAt(row,col)
         self.drawText(row, col, text, fgcolor)
+        self.rowUpdate()
         if bgcolor != None:
             self.drawRect(row,col, color=bgcolor)
         return
@@ -440,6 +445,7 @@ class TableCanvas(Canvas):
             in each column - usually only called  on first redraw"""
 
         #self.cols = self.model.getColumnCount()
+        self.requireRowHeightReset()
         try:
             fontsize = self.thefont[1]
         except:
@@ -466,8 +472,16 @@ class TableCanvas(Canvas):
     def autoResizeColumns(self):
         """Automatically set nice column widths and draw"""
 
+        self.requireRowHeightReset()
         self.adjustColumnWidths()
         self.redrawTable()
+        return
+
+    def adjustRowHeights(self):
+        for row in range(self.rows):
+            if row in self.model.rowheights and self.model.rowheights[row] > self.minrowheights[row]:
+                self.model.rowheights[row] = self.minrowheights[row]
+                self.rowUpdateRequired = True
         return
 
     def setColPositions(self):
@@ -757,6 +771,7 @@ class TableCanvas(Canvas):
 
         #print 'resizing column', col
         #recalculate all col positions..
+        self.requireRowHeightReset()
         colname=self.model.getColumnName(col)
         self.model.columnwidths[colname]=width
         self.setColPositions()
@@ -767,8 +782,8 @@ class TableCanvas(Canvas):
     def resizeRow(self, row, height):
         """Resize a row by dragging"""
         
-        if height < self.minrowheight:
-            height = self.minrowheight
+        if height < self.minrowheights[row]:
+            height = self.minrowheights[row]
         self.model.rowheights[row]=height
         self.setRowPositions()
         self.redrawTable()
@@ -830,7 +845,6 @@ class TableCanvas(Canvas):
         w=self.cellwidth
         x = int(self.canvasx(event.x))
         x_start=self.x_start
-        # print(self.col_positions)
         for idx, colpos in enumerate(self.col_positions):
             try:
                 # nextpos=self.col_positions[self.col_positions.index(colpos)+1]
@@ -939,9 +953,10 @@ class TableCanvas(Canvas):
 
     def setRowHeight(self, h):
         """Set the row height"""
-        if h < self.minrowheight:
+        if h < self.minrowheight: 
             h = self.minrowheight
         self.rowheight = h
+        self.minrowheights.default_factory = lambda: self.rowheight
         return
     
     def setRowMultiline(self, rowId=None, isMultiline=True):
@@ -956,9 +971,9 @@ class TableCanvas(Canvas):
         if columnName is None:
             columnName = self.get_currentColName()
         if isMultiline:
-            self.model.multilinerows.add(columnName)
+            self.model.multilinecolumns.add(columnName)
         else:
-            self.model.multilinerows.discard(columnName)
+            self.model.multilinecolumns.discard(columnName)
 
     def isMultiline(self, rowId=None, columnName=None):
         if rowId is None:
@@ -1280,6 +1295,7 @@ class TableCanvas(Canvas):
             value = self.model.doFormula(f)
             color = self.model.getColorAt(row,col,'fg')
             self.drawText(row, col, value, color)
+            self.rowUpdate()
             close()
             self.mode = 'normal'
             return
@@ -1740,6 +1756,7 @@ class TableCanvas(Canvas):
 
             color = self.model.getColorAt(row,col,'fg')
             self.drawText(row, col, value, color, align=self.align)
+            self.rowUpdate()
             if e.keysym=='Return':
                 self.delete('entry')
                 #self.drawRect(row, col)
@@ -1806,10 +1823,14 @@ class TableCanvas(Canvas):
 
         self.delete('celltext'+str(col)+'_'+str(row))
         h=self.rowheight
+        pad=self.xpadding
         x1,y1,x2,y2 = self.getCellCoords(row,col)
-        w=x2-x1
+        w=x2-x1-2*pad
         wrap = False
-        pad=5
+        colname = self.model.getColumnName(col)
+        multiline = self.isMultiline(row, colname)
+        fontsize = self.fontsize
+        scale = 8.5 * float(fontsize)/12
         # If celltxt is a number then we make it a string
         if type(celltxt) is float or type(celltxt) is int:
             celltxt=str(celltxt)
@@ -1831,11 +1852,8 @@ class TableCanvas(Canvas):
 
         if w < 18:
             celltxt = '.'
-        else:
-            fontsize = self.fontsize
-            colname = self.model.getColumnName(col)
-            scale = 8.5 * float(fontsize)/12
-            celltxt = self.truncateToWidth(celltxt, w-8)
+        elif not multiline:
+            celltxt = self.truncateToWidth(celltxt, w)
             ##scaling between canvas and text normalised to about font 14
             #scale = 8.5 * float(fontsize)/12
             #size = length * scale
@@ -1869,11 +1887,31 @@ class TableCanvas(Canvas):
 
         #just normal text
         else:
-            rect = self.create_text(x1+w/2,y1+h/2,
+            if multiline:
+                rect = self.create_text(x1+w/2,y1+1,
                                       text=celltxt,
                                       fill=fgcolor,
                                       font=self.thefont,
-                                      anchor=align,
+                                      anchor="n"+align,
+                                      tag=('text','celltext'+str(col)+'_'+str(row)),
+                                      width=w,
+                                      justify='left')
+                box = self.bbox(rect)
+                minh = box[3]-box[1]+2
+                self.minrowheights[row] = max(self.minrowheights[row], minh)
+                if row not in self.model.rowheights or self.model.rowheights[row] < minh:
+                    self.model.rowheights[row] = minh
+                    self.rowUpdateRequired = True
+                if self.resetToMinRowHeight and self.model.rowheights[row] > self.minrowheights[row]:
+                    self.model.rowheights[row] = self.minrowheights[row]
+                    self.rowUpdateRequired = True
+
+            else:
+                rect = self.create_text(x1+w/2,y1+1,
+                                      text=celltxt,
+                                      fill=fgcolor,
+                                      font=self.thefont,
+                                      anchor="n"+align,
                                       tag=('text','celltext'+str(col)+'_'+str(row)))
         return
 
@@ -1900,6 +1938,23 @@ class TableCanvas(Canvas):
         self.lower('rowrect')
         self.lower('fillrect')
         self.tablerowheader.drawSelectedRows(self.currentrow)
+        return
+
+    def rowUpdate(self):
+        if self.rowUpdateRequired:
+            self.rowUpdateRequired = False
+            self.resetToMinRowHeight = False
+            self.setRowPositions()
+            self.redrawTable()
+            if self.find_withtag('rowrect') != ():
+                self.drawSelectedRow(self.currentrow)
+        return
+    
+    def requireRowHeightReset(self):
+        self.resetToMinRowHeight = True
+        self.rowUpdateRequired = True
+        self.minrowheights.clear()
+        self.model.rowheights.clear()
         return
 
     def drawSelectedCol(self, col=None, delete=1):
@@ -2589,7 +2644,7 @@ class ColumnHeader(Canvas):
         x_start=self.table.x_start
         #x = event.x
         x=int(self.canvasx(event.x))
-        if x > self.tablewidth+w:
+        if x > self.table.tablewidth+w:
             return
         
         #if event x is within x pixels of divider, draw resize symbol
