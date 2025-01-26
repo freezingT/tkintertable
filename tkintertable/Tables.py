@@ -1748,11 +1748,16 @@ class TableCanvas(Canvas):
             text = self.model.getValueAt(row, col)
         x1,y1,x2,y2 = self.getCellCoords(row,col)
         w=x2-x1
-        #Draw an entry window
-        txtvar = StringVar()
-        txtvar.set(text)
+
         def callback(e):
-            value = txtvar.get()
+            if e.widget._name.startswith('!entry'):
+                isMultiline = False
+            else:
+                isMultiline = True
+            if isMultiline:
+                value = e.widget.get('1.0', 'end')
+            else:
+                value = txtvar.get()
             if value == '=':
                 #do a dialog that gets the formula into a text area
                 #then they can click on the cells they want
@@ -1764,43 +1769,63 @@ class TableCanvas(Canvas):
 
             coltype = self.model.getColumnType(col)
             if coltype == 'number':
-                sta = self.checkDataEntry(e)
+                sta = self.checkDataEntry(e, isText=isMultiline)
                 if sta == 1:
                     model.setValueAt(value,row,col)
             elif coltype == 'text':
+                if e.keysym=='Return' and isMultiline and e.state & 0x0001 == 0:
+                    value = value[:-1]
                 model.setValueAt(value,row,col)
 
             color = self.model.getColorAt(row,col,'fg')
             self.drawText(row, col, value, color, align=self.align)
             self.rowUpdate()
             if e.keysym=='Return':
-                self.delete('entry')
-                #self.drawRect(row, col)
-                #self.gotonextCell(e)
+                if not isMultiline or (isMultiline and e.state & 0x0001 == 0):
+                    self.delete('entry')
             return
+        
+        #Draw an entry window
+        if self.isMultiline(row, self.model.getColumnName(col)):
+            h = model.rowheights[row]
+            self.cellentry = Text(self.parentframe, width=20, takefocus=1, font=self.thefont, borderwidth=0)
+            self.cellentry.insert(1.0, text)
+            self.cellentry.bind('<Return>', callback)
+            self.cellentry.bind('<KeyRelease>', callback)
+            self.cellentry.focus_set()
+            self.entrywin=self.create_window(x1+self.inset,y1+self.inset,
+                                    width=w-self.inset*2,height=h,
+                                    window=self.cellentry,anchor='nw',
+                                    tag='entry')
+        else:
+            txtvar = StringVar()
+            txtvar.set(text)
 
-        self.cellentry=Entry(self.parentframe,width=20,
-                        textvariable=txtvar,
-                        #bg=self.entrybackgr,
-                        #relief=FLAT,
-                        takefocus=1,
-                        font=self.thefont)
-        self.cellentry.icursor(END)
-        self.cellentry.bind('<Return>', callback)
-        self.cellentry.bind('<KeyRelease>', callback)
-        self.cellentry.focus_set()
-        self.entrywin=self.create_window(x1+self.inset,y1+self.inset,
-                                width=w-self.inset*2,height=h-self.inset*2,
-                                window=self.cellentry,anchor='nw',
-                                tag='entry')
+            self.cellentry=Entry(self.parentframe,width=20,
+                            textvariable=txtvar,
+                            #bg=self.entrybackgr,
+                            #relief=FLAT,
+                            takefocus=1,
+                            font=self.thefont)
+            self.cellentry.icursor(END)
+            self.cellentry.bind('<Return>', callback)
+            self.cellentry.bind('<KeyRelease>', callback)
+            self.cellentry.focus_set()
+            self.entrywin=self.create_window(x1+self.inset,y1+self.inset,
+                                    width=w-self.inset*2,height=h-self.inset*2,
+                                    window=self.cellentry,anchor='nw',
+                                    tag='entry')
 
         return
 
-    def checkDataEntry(self,event=None):
+    def checkDataEntry(self,event=None, isText=False):
         """do validation checks on data entry in a widget"""
         #if user enters commas, change to points
         import re
-        value=event.widget.get()
+        if isText:
+            value=event.widget.get('1.0', 'end')
+        else:
+            value=event.widget.get()
         if value!='':
             try:
                 value=re.sub(',','.', value)
