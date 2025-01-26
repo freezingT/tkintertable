@@ -80,9 +80,11 @@ class TableCanvas(Canvas):
         self.allrows = False       #for selected all rows without setting multiplerowlist
         self.multiplerowlist=[]
         self.multiplecollist=[]
+        self.columnTooltipEnable=defaultdict(lambda: True)
         self.col_positions=[]       #record current column grid positions
         self.row_positions=[] 
         self.minrowheights=defaultdict(lambda : self.minrowheight)
+        self.maxcellwidth = defaultdict(lambda: self.defaultmaxcellwidth)
         self.mode = 'normal'
         self.read_only = read_only
         self.filtered = False
@@ -122,7 +124,7 @@ class TableCanvas(Canvas):
         """Set default settings"""
 
         self.cellwidth=150
-        self.maxcellwidth=500
+        self.defaultmaxcellwidth=500
         self.mincellwidth=22
         self.rowheight=20
         self.minrowheight=20
@@ -462,8 +464,8 @@ class TableCanvas(Canvas):
             if size < w:
                 continue
             #print col, size, self.cellwidth
-            if size > self.maxcellwidth:
-                size = self.maxcellwidth
+            if size > self.maxcellwidth[colname]:
+                size = self.maxcellwidth[colname]
             if size < self.mincellwidth:
                 size = self.mincellwidth
             self.model.columnwidths[colname] = size + float(fontsize)/12*6
@@ -483,6 +485,20 @@ class TableCanvas(Canvas):
                 self.model.rowheights[row] = self.minrowheights[row]
                 self.rowUpdateRequired = True
         return
+
+    def setColumnTooltip(self, columnname=None, enable=True):
+        if columnname is None:
+            columnname = self.get_currentColName()
+        self.columnTooltipEnable[columnname] = enable
+        return
+
+    def setMaxCellWidth(self, columnname=None, newmaxcellwidth=None):
+        if columnname is None:
+            columnname = self.get_currentColName()
+        if newmaxcellwidth is None:
+            self.maxcellwidth.pop(columnname)
+        else:
+            self.maxcellwidth[columnname] = max(self.mincellwidth, newmaxcellwidth)
 
     def setColPositions(self):
         """Determine current column grid positions"""
@@ -2007,6 +2023,8 @@ class TableCanvas(Canvas):
     def drawTooltip(self, row, col):
         """Draw a tooltip showing contents of cell"""
 
+        if not self.columnTooltipEnable[self.model.columnNames[col]]:
+            return
         x1,y1,x2,y2 = self.getCellCoords(row,col)
         w=x2-x1
         text = self.model.getValueAt(row,col)
@@ -2586,8 +2604,9 @@ class ColumnHeader(Canvas):
             newwidth = x-x1
             if newwidth < self.table.mincellwidth:
                 newwidth = self.table.mincellwidth
-            if newwidth > self.table.maxcellwidth:
-                newwidth = self.table.maxcellwidth
+            maxcellwidth = self.table.maxcellwidth[self.table.model.getColumnName(col)]
+            if newwidth > maxcellwidth:
+                newwidth = maxcellwidth
             self.table.resizeColumn(col, newwidth)
             self.table.delete('resizeline')
             self.delete('resizeline')
