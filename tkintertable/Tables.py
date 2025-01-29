@@ -54,7 +54,7 @@ from collections import defaultdict
 class TableCanvas(Canvas):
     """A tkinter class for providing table functionality"""
 
-    def __init__(self, parent=None, model=None, data=None, read_only=False,
+    def __init__(self, parent=None, model=None, data=None, read_only=False, show_popup=True,
                  width=None, height=None, bgcolor='#F7F7FA', fgcolor='black',
                  rows=10, cols=5, **kwargs):
         Canvas.__init__(self, parent, bg=bgcolor,
@@ -87,6 +87,7 @@ class TableCanvas(Canvas):
         self.maxcellwidth = defaultdict(lambda: self.defaultmaxcellwidth)
         self.mode = 'normal'
         self.read_only = read_only
+        self.show_popup = show_popup
         self.filtered = False
         self.rowUpdateRequired = False
         self.resetToMinRowHeight = False
@@ -147,6 +148,35 @@ class TableCanvas(Canvas):
         self.selectedcolor = 'yellow'
         self.rowselectedcolor = '#CCCCFF'
         self.multipleselectioncolor = '#ECD672'
+
+        popupmenu_enabled = {"Set Fill Color" : True,
+                                "Set Text Color" : True,
+                                "Copy" : True,
+                                "Paste" : True,
+                                "Fill Down" : True,
+                                "Fill Right" : True,
+                                "Add Row(s)" : True,
+                                "Delete Row(s)" : True,
+                                "View Record" : True,
+                                "Clear Data" : True,
+                                "Select All" : True,
+                                "Auto Fit Columns" : True,
+                                "Filter Records" : True,
+                                "New": True,
+                                "Load": True,
+                                "Save": True,
+                                "Import text": True,
+                                "Export csv": True,
+                                "Plot Selected" : True,
+                                "Plot Options" : True,
+                                "Export Table" : True,
+                                "Preferences" : True,
+                                "Formulae->Value" : True,
+                                "Rename Column": True,
+                                "Sort by": True,
+                                "Delete This Column": True,
+                                "Add New Column": True}
+        self.showPopupMenuEntry = popupmenu_enabled
         return
 
     def setFontSize(self):
@@ -1072,8 +1102,6 @@ class TableCanvas(Canvas):
         self.multiplerowlist.append(rowclicked)
         if rowclicked is None or colclicked is None:
             return
-        if self.read_only is True:
-            return
         if 0 <= rowclicked < self.rows and 0 <= colclicked < self.cols:
             self.setSelectedRow(rowclicked)
             self.setSelectedCol(colclicked)
@@ -1218,7 +1246,7 @@ class TableCanvas(Canvas):
     def handle_right_click(self, event):
         """respond to a right click"""
 
-        if self.read_only is True:
+        if self.show_popup == False:
             return
         self.delete('tooltip')
         self.tablerowheader.clearSelected()
@@ -1463,7 +1491,7 @@ class TableCanvas(Canvas):
                         "Preferences" : self.showtablePrefs,
                         "Formulae->Value" : lambda : self.convertFormulae(rows, cols)}
 
-        main = ["Set Fill Color","Set Text Color","Copy", "Paste", "Fill Down","Fill Right",
+        main = ["Set Fill Color","Set Text Color","Copy", "Paste", "View Record", "Fill Down","Fill Right",
                 "Clear Data"]
         general = ["Select All", "Add Row(s)" , "Delete Row(s)", "Auto Fit Columns", "Filter Records", "Preferences"]
         filecommands = ['New','Load','Save','Import text','Export csv']
@@ -1471,9 +1499,15 @@ class TableCanvas(Canvas):
 
         def createSubMenu(parent, label, commands):
             menu = Menu(parent, tearoff = 0)
-            popupmenu.add_cascade(label=label,menu=menu)
+            any = False
             for action in commands:
-                menu.add_command(label=action, command=defaultactions[action])
+                if self.showPopupMenuEntry[action]:
+                    any = True
+                    menu.add_command(label=action, command=defaultactions[action])
+            if any:
+                popupmenu.add_cascade(label=label,menu=menu)
+            else:
+                menu = None
             return menu
 
         def add_commands(fieldtype):
@@ -1501,7 +1535,8 @@ class TableCanvas(Canvas):
                     if action == 'Fill Right' and (cols == None or len(cols) <= 1):
                         continue
                     else:
-                        popupmenu.add_command(label=action, command=defaultactions[action])
+                        if self.showPopupMenuEntry[action]:
+                            popupmenu.add_command(label=action, command=defaultactions[action])
                 return
 
             if coltype in self.columnactions:
@@ -1509,7 +1544,8 @@ class TableCanvas(Canvas):
             add_defaultcommands()
 
         for action in general:
-            popupmenu.add_command(label=action, command=defaultactions[action])
+            if self.showPopupMenuEntry[action]:
+                popupmenu.add_command(label=action, command=defaultactions[action])
 
         popupmenu.add_separator()
         createSubMenu(popupmenu, 'File', filecommands)
@@ -2706,8 +2742,10 @@ class ColumnHeader(Canvas):
         """respond to a right click"""
 
         self.handle_left_click(event)
-        if self.table.read_only == False:
-            self.rightmenu = self.popupMenu(event)
+        if self.table.show_popup == True:
+            pm = self.popupMenu(event)
+            if pm is not None:
+                self.rightmenu = pm
         return
 
     def handle_right_release(self, event):
@@ -2743,11 +2781,22 @@ class ColumnHeader(Canvas):
         popupmenu = Menu(self, tearoff = 0)
         def popupFocusOut(event):
             popupmenu.unpost()
-        popupmenu.add_command(label="Rename Column", command=self.relabel_Column)
-        popupmenu.add_command(label="Sort by "+ collabel, command=lambda : self.table.sortTable(currcol))
-        popupmenu.add_command(label="Sort by "+ collabel +' (descending)', command=lambda : self.table.sortTable(currcol,reverse=1))
-        popupmenu.add_command(label="Delete This Column", command=self.table.deleteColumn)
-        popupmenu.add_command(label="Add New Column", command=self.table.addColumn)
+        any = False
+        if self.table.showPopupMenuEntry["Rename Column"]:
+            popupmenu.add_command(label="Rename Column", command=self.relabel_Column)
+            any = True
+        if self.table.showPopupMenuEntry["Sort by"]:
+            popupmenu.add_command(label="Sort by "+ collabel, command=lambda : self.table.sortTable(currcol))
+            popupmenu.add_command(label="Sort by "+ collabel +' (descending)', command=lambda : self.table.sortTable(currcol,reverse=1))
+            any = True
+        if self.table.showPopupMenuEntry["Delete This Column"]:
+            popupmenu.add_command(label="Delete This Column", command=self.table.deleteColumn)
+            any = True
+        if self.table.showPopupMenuEntry["Add New Column"]:
+            popupmenu.add_command(label="Add New Column", command=self.table.addColumn)
+            any = True
+        if not any:
+            return None
 
         popupmenu.bind("<FocusOut>", popupFocusOut)
         #self.bind("<Button-3>", popupFocusOut)
