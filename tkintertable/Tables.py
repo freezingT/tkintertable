@@ -22,11 +22,11 @@
 from __future__ import absolute_import, division, print_function
 import sys
 try:
-    from tkinter import *
-    from tkinter.ttk import *
+    from tkinter import * # type: ignore
+    from tkinter.ttk import * # type: ignore
 except:
-    from Tkinter import *
-    from ttk import *
+    from Tkinter import * # type: ignore
+    from ttk import * # type: ignore
 if (sys.version_info > (3, 0)):
     from tkinter import filedialog, messagebox, simpledialog
     from tkinter import font

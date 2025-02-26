@@ -1,9 +1,9 @@
 try:
-    import tkinter as tk
-    from tkinter import Menubutton, Menu, Canvas
+    import tkinter as tk # type: ignore
+    from tkinter import Menubutton, Menu, Canvas # type: ignore
 except:
-    import Tkinter as tk
-    from Tkinter import Menubutton, Menu, Canvas
+    import Tkinter as tk # type: ignore
+    from Tkinter import Menubutton, Menu, Canvas # type: ignore
 
 try:
     from customtkinter import CTkFrame as Frame
