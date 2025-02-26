@@ -35,7 +35,6 @@ try:
     from customtkinter import CTkComboBox as Combobox
     from customtkinter import CTkEntry as Entry
     from customtkinter import CTkScrollableFrame
-    #from tkinter import *
     from tkinter import filedialog, messagebox, simpledialog
 except:
     Frame = tk.Frame
@@ -51,7 +50,7 @@ try:
 except ImportError:
     from typing_extensions import Literal
 from types import *
-from cellcontentoperators import *
+from .CellContentOperators import *
 
 
 
@@ -63,6 +62,8 @@ def doFiltering(searchfunc, filters=None):
 
     if filters == None:
         return
+    if len(filters) == 0:
+        return None
     F = filters
     sets = []
     for f in F:
@@ -85,7 +86,7 @@ def doFiltering(searchfunc, filters=None):
 def getOperators(fieldtype: str) -> list[str]:
     lst = []
     if fieldtype == "text":
-        lst = ['contains','excludes','starts with', 'ends with', 'regex']
+        lst = ['contains','excludes','starts with', 'ends with', 'contains (c.ins.)', 'starts with (c.ins.)', 'ends with (c.ins.)', 'regex']
     elif fieldtype == "number":
         lst = ['=','!=','>','<']
     elif fieldtype == "date":
@@ -110,44 +111,34 @@ class FilterFrame(Frame):
             raise RuntimeError('Number of given fields and number of field types must match.')
         self.filters = []
 
-        #self.columnconfigure(1, weight=2)
-        topframe = Frame(self)
-        topframe.pack(side=tk.TOP, fill="x", anchor="n")
+        #topframe = Frame(self)
+        #topframe.pack(side=tk.TOP, fill="x", anchor="n")
 
-        gobutton=Button(topframe, text='Go', command=self.callback)
-        gobutton.pack(side=tk.LEFT, fill="x", expand=True, padx=2, pady=2)
-        #addbutton.grid(row=0,column=0, sticky='news', padx=2, pady=2)
+        #gobutton=Button(topframe, text='Go', command=self.callback)
+        #gobutton.pack(side=tk.LEFT, fill="x", expand=True, padx=2, pady=2)
 
-        addbutton=Button(topframe, text='+Add Filter', command=self.addFilterBar)
-        addbutton.pack(side=tk.LEFT, fill="x", expand=True, padx=2, pady=2)
-        #addbutton.grid(row=0,column=1,sticky='news',padx=2,pady=2)
+        #addbutton=Button(topframe, text='+Add Filter', command=self.addFilterBar)
+        #addbutton.pack(side=tk.LEFT, fill="x", expand=True, padx=2, pady=2)
 
-        self.resultsvar=IntVar()
-        foundlabel = Label(topframe, text='Results:')
-        foundlabel.pack(side=tk.LEFT, padx=(20,2), pady=2)#.grid(row=0,column=3,sticky='nes')
-        numlabel = Label(topframe, textvariable=self.resultsvar)
-        numlabel.pack(side=tk.LEFT, padx=2, pady=2)#.grid(row=0,column=4,sticky='nws',padx=2,pady=2)
+        #self.resultsvar=IntVar()
+        #foundlabel = Label(topframe, text='Results:')
+        #foundlabel.pack(side=tk.LEFT, padx=(20,2), pady=2)#.grid(row=0,column=3,sticky='nes')
+        #numlabel = Label(topframe, textvariable=self.resultsvar)
+        #numlabel.pack(side=tk.LEFT, padx=2, pady=2)#.grid(row=0,column=4,sticky='nws',padx=2,pady=2)
         
-        self.scrollableFrame = CTkScrollableFrame(self, height=100)
-        self.scrollableFrame._scrollbar.configure(height=100)
-        #self.scrollableFrame.grid(row=1, column=0, sticky='news', padx=2, pady=2, columnspan=4)
-        self.scrollableFrame.pack(side=tk.TOP, fill="x", expand=True, padx=2, pady=2, anchor="n")
+        self.filterframe = CTkScrollableFrame(self, height=100)
+        self.filterframe._scrollbar.configure(height=100)
+        self.filterframe.pack(side=tk.TOP, fill="x", expand=True, padx=2, pady=2, anchor="n")
 
-        self.addPlaceholder()
+        self.addFilterBar()
         return
 
     def addFilterBar(self):
         """Add filter"""
         index = len(self.filters)
-        f = FilterBar(self.scrollableFrame, self, index, self.fields)
+        f = FilterBar(self.filterframe, self, index)
         self.filters.append(f)
         f.pack(side="top", padx=2, pady=2, anchor="ne", fill="x", expand=True)
-        self.addPlaceholder()        
-        return
-
-    def addPlaceholder(self):
-        placeholder = FilterBarPlaceholder(self.scrollableFrame, self)
-        placeholder.pack(side="top", padx=2, pady=2, anchor="ne", fill="x", expand=True)
         return
 
     def getFieldType(self, fieldname):
@@ -168,57 +159,52 @@ class FilterFrame(Frame):
     def _triggerFiltering(self, trigger_index=-1):
         F=[]
         for f in self.filters:
-            F.append(f.getFilter())
+            if f.isValid():
+                F.append(f.getFilter())
 
         n = self.callback(F)
         self.updateResults(n)
 
     def updateResults(self, i):
-        self.resultsvar.set(i)
+        #self.resultsvar.set(i)
         return
 
-class FilterBarPlaceholder(Frame):
-    """Class providing "+"-Button for a new FilterBar"""
-
-    def __init__(self, parent, filterframe):
-        Frame.__init__(self, parent)
-        self.filterframe = filterframe
-        cbutton=Button(self,text='+', command=self.callback, width=25)
-        cbutton.pack(side=tk.LEFT)
-
-        label = Label(self, text="Filter")
-        label.pack(side=tk.LEFT)
-
-        return
-
-    def callback(self):
-        self.close()
-        self.filterframe.addFilterBar()
-        return
-    
-    def close(self):
-        """Destroy and remove from parent"""
-        self.destroy()
-        return
 
 class FilterBar(Frame):
     """Class providing filter widgets"""
     booleanops = ['AND','OR','NOT']
 
-    def __init__(self, parent, filterframe, index, fields):
+    def __init__(self, parent, filterframe, index, activated=False):
         Frame.__init__(self, parent)
-        self.filterframe=filterframe
+        self.filterframe = filterframe
         self.index = index
+
+        self._cbutton=Button(self, text='+', command=self.activate, width=25)
+        self._cbutton.pack(side=tk.LEFT, padx=2, pady=2)
+
+        self._label = Label(self, text="Add Filter")
+        self._label.pack(side=tk.LEFT, padx=(5, 2), pady=2)
+        self.activated = False
+
+        if activated:
+            self.activate()
+        return
+        
+    def activate(self):
+        self._cbutton.configure(text="-", command=self.close)
+        self._label.destroy()
+        self.buildBar()
+        self.filterframe.addFilterBar()
+        return
+
+
+    def buildBar(self):
         self.filtercol=StringVar()
 
         self._booleanselected = 'AND'
         self._columnselected = None
         self._operatorselected = None
         self._valueselected = None
-
-        cbutton=Button(self,text='-', command=self.close, width=25)
-        #cbutton.grid(row=0,column=5,sticky='news',padx=2,pady=2)
-        cbutton.pack(side=tk.LEFT)
 
         self.booleanop=StringVar()
         self.booleanop.set('AND')
@@ -227,25 +213,16 @@ class FilterBar(Frame):
                 values = self.booleanops,
                 command=lambda event: self.actioncallback(0, event),
                 state="readonly",
-                #initialitem = 'AND',
                 width = 70)
-        #booleanopmenu.grid(row=0,column=0,sticky='news',padx=2,pady=2)
-        self._booleanopmenu.pack(side=tk.LEFT)
-        #disable the boolean operator if it's the first filter
-        #if self.index == 0:
-        #    booleanopmenu.component('menubutton').configure(state=DISABLED)
+        self._booleanopmenu.pack(side=tk.LEFT, padx=2, pady=2)
 
         self._filtercolmenu = Combobox(self,
-                #labelpos = 'w',
-                #label_text = 'Column:',
                 variable = self.filtercol,
-                values = fields,
+                values = self.filterframe.fields,
                 command=lambda event: self.actioncallback(1, event),
                 state="readonly",
                 width = 150)
-                #initialitem = initial,)
-        #filtercolmenu.grid(row=0,column=1,sticky='news',padx=2,pady=2)
-        self._filtercolmenu.pack(side=tk.LEFT, expand=False, fill="x")
+        self._filtercolmenu.pack(side=tk.LEFT, expand=False, fill="x", padx=2, pady=2)
 
         self.operator=StringVar()
         self._operatormenu = Combobox(self,
@@ -253,22 +230,16 @@ class FilterBar(Frame):
                 values = [],
                 command=lambda event: self.actioncallback(2, event),
                 state="readonly",
-                #initialitem = 'contains',
-                width = 100)
-        #operatormenu.grid(row=0,column=2,sticky='news',padx=2,pady=2)
-        self._operatormenu.pack(side=tk.LEFT)
+                width = 150)
+        self._operatormenu.pack(side=tk.LEFT, padx=2, pady=2)
 
         self.filtercolvalue=StringVar()
         self._valsbox=Entry(self, textvariable=self.filtercolvalue, width=20)
-        #valsbox.grid(row=0,column=3,sticky='news',padx=2,pady=2)
-        self._valsbox.pack(side=tk.LEFT, expand=True, fill="x")
+        self._valsbox.pack(side=tk.LEFT, expand=True, fill="x", padx=2, pady=2)
         self._valsbox.bind("<Return>", lambda event: self.actioncallback(3, event))
         self._valsbox.bind("<FocusOut>", lambda event: self.actioncallback(3, event))
-
+        self.activated = True
         return
-
-    #def activate(self):
-    #    pass
 
     def actioncallback(self, id, event):
         changed = False
@@ -290,9 +261,10 @@ class FilterBar(Frame):
 
         if changed and self.isValid():
             self.filterframe._triggerFiltering(self.index)
+        return
     
     def isValid(self):
-        return self._columnselected is not None and self._operatorselected is not None and self._valueselected is not None and len(self._valueselected) > 0
+        return self.activated and self._columnselected is not None and self._operatorselected is not None and self._valueselected is not None and len(self._valueselected) > 0
 
     def switchOperatorSet(self, oldOperator=None):
         type = self.filterframe.getFieldType(self._columnselected)
@@ -314,6 +286,7 @@ class FilterBar(Frame):
         """Destroy and remove from parent"""
         self.filterframe.filters.remove(self)
         self.destroy()
+        self.filterframe._triggerFiltering()
         return
 
 

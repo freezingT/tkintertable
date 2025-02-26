@@ -29,7 +29,7 @@ except:
     from ttk import *
 #import Pmw
 from types import *
-from cellcontentoperators import *
+from .CellContentOperators import *
 
 
 def doFiltering(searchfunc, filters=None):
