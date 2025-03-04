@@ -53,36 +53,6 @@ from types import *
 from .CellContentOperators import *
 
 
-
-def doFiltering(searchfunc, filters=None):
-    """Module level method. Filter recs by several filters using a user provided
-       search function.
-       filters is a list of tuples of the form (key,value,operator,bool)
-       returns: found record keys"""
-
-    if filters == None:
-        return
-    if len(filters) == 0:
-        return None
-    F = filters
-    sets = []
-    for f in F:
-        col, val, op, boolean = f
-        names = searchfunc(col, val, op)
-        sets.append((set(names), boolean))
-    names = sets[0][0]
-    for s in sets[1:]:
-        b=s[1]
-        if b == 'AND':
-            names = names & s[0]
-        elif b == 'OR':
-            names = names | s[0]
-        elif b == 'NOT':
-            names = names - s[0]
-        #print len(names)
-    names = list(names)
-    return names
-
 def getOperators(fieldtype: str) -> list[str]:
     lst = []
     if fieldtype == "text":
@@ -96,9 +66,9 @@ def getOperators(fieldtype: str) -> list[str]:
     return lst
     
 
-class FilterFrame(Frame):
+class FilterPanel(Frame):
 
-    def __init__(self, parent, fields, fieldtypes: list[Literal["text", "number", "date"]], callback=None):
+    def __init__(self, parent, fields, fieldtypes: list[Literal["text", "number", "date"]]=None, callback=None):
         """Create a filtering gui frame.
         Callback must be some method that can accept tuples of filter
         parameters connected by boolean operators """
@@ -106,25 +76,12 @@ class FilterFrame(Frame):
         self.parent = parent
         self.callback = callback
         self.fields = fields
+        if fieldtypes is None:
+            fieldtypes = ["text"]*len(fields)
         self.fieldtypes = fieldtypes
         if len(fields) != len(fieldtypes):
             raise RuntimeError('Number of given fields and number of field types must match.')
         self.filters = []
-
-        #topframe = Frame(self)
-        #topframe.pack(side=tk.TOP, fill="x", anchor="n")
-
-        #gobutton=Button(topframe, text='Go', command=self.callback)
-        #gobutton.pack(side=tk.LEFT, fill="x", expand=True, padx=2, pady=2)
-
-        #addbutton=Button(topframe, text='+Add Filter', command=self.addFilterBar)
-        #addbutton.pack(side=tk.LEFT, fill="x", expand=True, padx=2, pady=2)
-
-        #self.resultsvar=IntVar()
-        #foundlabel = Label(topframe, text='Results:')
-        #foundlabel.pack(side=tk.LEFT, padx=(20,2), pady=2)#.grid(row=0,column=3,sticky='nes')
-        #numlabel = Label(topframe, textvariable=self.resultsvar)
-        #numlabel.pack(side=tk.LEFT, padx=2, pady=2)#.grid(row=0,column=4,sticky='nws',padx=2,pady=2)
         
         self.filterframe = CTkScrollableFrame(self, height=100)
         self.filterframe._scrollbar.configure(height=100)

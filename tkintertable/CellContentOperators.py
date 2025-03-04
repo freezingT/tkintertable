@@ -75,4 +75,30 @@ operatornames = {'=': equals,
                 'before': beforeDateTime,
                 'since': sinceDateTime}
 
+def doFiltering(searchfunc, filters=None):
+    """Module level method. Filter recs by several filters using a user provided
+       search function.
+       filters is a list of tuples of the form (key,value,operator,bool)
+       returns: found record keys"""
+
+    if filters == None:
+        return
+    F = filters
+    sets = []
+    for f in F:
+        col, val, op, boolean = f
+        names = searchfunc(col, val, op)
+        sets.append((set(names), boolean))
+    names = sets[0][0]
+    for s in sets[1:]:
+        b=s[1]
+        if b == 'AND':
+            names = names & s[0]
+        elif b == 'OR':
+            names = names | s[0]
+        elif b == 'NOT':
+            names = names - s[0]
+        #print len(names)
+    names = list(names)
+    return names
 

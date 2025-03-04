@@ -41,6 +41,7 @@ else:
 from .TableModels import TableModel
 from .TableFormula import Formula
 from .Prefs import Preferences
+from .FilterDialogFactoryInterface import FilterDialogFactoryInterface as FDFI
 from .Dialogs import *
 
 import math, time
@@ -55,7 +56,7 @@ class TableCanvas(Canvas):
     """A tkinter class for providing table functionality"""
 
     def __init__(self, parent=None, model=None, data=None, read_only=False, show_popup=True,
-                 width=None, height=None, bgcolor='#F7F7FA', fgcolor='black',
+                 width=None, height=None, bgcolor='#F7F7FA', fgcolor='black', filterdialogfactory: FDFI = None,
                  rows=10, cols=5, **kwargs):
         Canvas.__init__(self, parent, bg=bgcolor,
                          width=width, height=height,
@@ -91,6 +92,9 @@ class TableCanvas(Canvas):
         self.filtered = False
         self.rowUpdateRequired = False
         self.resetToMinRowHeight = False
+        self.filterdialog = filterdialogfactory
+        if self.filterdialog is not None:
+            self.filterdialog.subscribe(self.tiggerFiltering, self.showAll)
 
         self.loadPrefs()
         #set any options passed in kwargs to overwrite defaults and prefs
@@ -766,7 +770,7 @@ class TableCanvas(Canvas):
         self.redrawTable()
         return
 
-    def doFilter(self, event=None):
+    def tiggerFiltering(self, doFilterCallback, event=None):
         """Filter the table display by some column values.
         We simply pass the model search function to the the filtering
         class and that handles everything else.
@@ -774,42 +778,11 @@ class TableCanvas(Canvas):
         """
         if self.model==None:
             return
-        names = self.filterframe.doFiltering(searchfunc=self.model.filterBy)
+        names = doFilterCallback(searchfunc=self.model.filterBy)
         #create a list of filtered recs
         self.model.filteredrecs = names
         self.filtered = True
         self.redrawTable()
-        return
-
-    def createFilteringBar(self, parent=None, fields=None):
-        """Add a filter frame"""
-
-        if parent == None:
-            parent = Toplevel()
-            parent.title('Filter Records')
-            x,y,w,h = self.getGeometry(self.master)
-            parent.geometry('+%s+%s' %(x,y+h))
-        if fields == None:
-            fields = self.model.columnNames
-        from .Filtering import FilterFrame
-        self.filterframe = FilterFrame(parent, fields,
-                                       self.doFilter, self.closeFilterFrame)
-        self.filterframe.pack()
-        return parent
-
-    def showFilteringBar(self):
-        if not hasattr(self, 'filterwin') or self.filterwin == None:
-            self.filterwin = self.createFilteringBar()
-            self.filterwin.protocol("WM_DELETE_WINDOW", self.closeFilterFrame)
-        else:
-            self.filterwin.lift()
-        return
-
-    def closeFilterFrame(self):
-        """Callback for closing filter frame"""
-        self.filterwin.destroy()
-        self.filterwin = None
-        self.showAll()
         return
 
     def resizeColumn(self, col, width):
@@ -1466,6 +1439,10 @@ class TableCanvas(Canvas):
     def popupMenu(self, event, rows=None, cols=None, outside=None):
         """Add left and right click behaviour for canvas, should not have to override
             this function, it will take its values from defined dicts in constructor"""
+        
+        fdialog = None
+        if self.filterdialog is not None:
+            fdialog = lambda : self.filterdialog.createFilteringDialog(parent=self, fields=self.model.columnNames)
 
         defaultactions = {"Set Fill Color" : lambda : self.setcellColor(rows,cols,key='bg'),
                         "Set Text Color" : lambda : self.setcellColor(rows,cols,key='fg'),
@@ -1479,7 +1456,7 @@ class TableCanvas(Canvas):
                         "Clear Data" : lambda : self.deleteCells(rows, cols),
                         "Select All" : self.select_All,
                         "Auto Fit Columns" : self.autoResizeColumns,
-                        "Filter Records" : self.showFilteringBar,
+                        "Filter Records" : fdialog,
                         "New": self.new,
                         "Load": self.load,
                         "Save": self.save,
@@ -1491,9 +1468,14 @@ class TableCanvas(Canvas):
                         "Preferences" : self.showtablePrefs,
                         "Formulae->Value" : lambda : self.convertFormulae(rows, cols)}
 
+        if self.filterdialog is None:
+            del defaultactions['Filter Records']
+
         main = ["Set Fill Color","Set Text Color","Copy", "Paste", "View Record", "Fill Down","Fill Right",
                 "Clear Data"]
         general = ["Select All", "Add Row(s)" , "Delete Row(s)", "Auto Fit Columns", "Filter Records", "Preferences"]
+        if self.filterdialog is None:
+            general.remove('Filter Records')
         filecommands = ['New','Load','Save','Import text','Export csv']
         plotcommands = ['Plot Selected','Plot Options']
 

@@ -29,6 +29,7 @@ except:
 import random, string
 from .Tables import TableCanvas
 from .TableModels import TableModel
+from .FilterDialogFactory import FilterDialogFactory
 
 """Testing general functionality of tables"""
 
@@ -79,7 +80,7 @@ def createTable(model, **kwargs):
 	t=Toplevel()
 	app = App(t)
 	master = app.main
-	table = TableCanvas(master, model,rowheaderwidth=50, **kwargs)
+	table = TableCanvas(master, model,rowheaderwidth=50, filterdialogfactory=FilterDialogFactory(), **kwargs)
 	table.createTableFrame()
 	return table
 
@@ -96,7 +97,7 @@ def test1(root):
 	table = TableCanvas(master, model,
 						cellwidth=60, cellbackgr='#e3f698',
 						thefont=('Arial',12),rowheight=18, rowheaderwidth=30,
-						rowselectedcolor='yellow', editable=True)
+						rowselectedcolor='yellow', editable=True, filterdialogfactory=FilterDialogFactory())
 	table.createTableFrame()
 	#table.sortTable(columnName='label')
 	#remove cols
@@ -140,7 +141,7 @@ def test2():
 		fr = Frame(master)
 		if c%3==0: c=0; r+=1
 		fr.grid(row=r,column=c,sticky='nws')
-		table = TableCanvas(fr, model, width=250,height=150,rowheaderwidth=0)
+		table = TableCanvas(fr, model, width=250,height=150,rowheaderwidth=0, filterdialogfactory=FilterDialogFactory())
 		table.createTableFrame()
 		c+=1
 	return
