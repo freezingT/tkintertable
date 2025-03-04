@@ -23,5 +23,6 @@
 
 from .Tables import *
 from .TableModels import *
+from .MultipageTable import *
 
 __version__ = '1.3.3'
