@@ -38,7 +38,6 @@ class FilterDialog(Frame, TableFilter):
         Callback must be some method that can accept tuples of filter
         parameters connected by boolean operators """
         Frame.__init__(self, parent)
-        TableFilter.__init__(self, callback=callback)
 
         self.parent = parent
         self.closecallback = closecallback
@@ -46,7 +45,7 @@ class FilterDialog(Frame, TableFilter):
         self.filters = []
         self.addFilterBar()
 
-        addbutton=Button(self,text='Go', command=self._filter_callback)
+        addbutton=Button(self,text='Go', command=lambda: callback(self.doFiltering))
         addbutton.grid(row=0,column=0,sticky='news',padx=2,pady=2)
         addbutton=Button(self,text='+Add Filter', command=self.addFilterBar)
         addbutton.grid(row=0,column=1,sticky='news',padx=2,pady=2)
@@ -71,16 +70,14 @@ class FilterDialog(Frame, TableFilter):
         self.destroy()
         return
 
-    def doFiltering(self, searchfunc):
+    def getFilterStructure(self):
         F=[]
         for f in self.filters:
             F.append(f.getFilter())
-        names = doFiltering(searchfunc, F)
-        self.updateResults(len(names))
-        return names
+        return F
 
-    def updateResults(self, i):
-        self.resultsvar.set(i)
+    def updateResults(self, rownames):
+        self.resultsvar.set(len(rownames))
         return
 
 class FilterBar(Frame):
@@ -112,7 +109,7 @@ class FilterBar(Frame):
         self.filtercolvalue=StringVar()
         valsbox=Entry(self,textvariable=self.filtercolvalue,width=20)
         valsbox.grid(row=0,column=3,sticky='news',padx=2,pady=2)
-        valsbox.bind("<Return>", self.parent._filter_callback)
+        valsbox.bind("<Return>", self.parent.doFiltering)
         self.booleanop=StringVar()
         self.booleanop.set('AND')
         booleanopmenu = Combobox(self,

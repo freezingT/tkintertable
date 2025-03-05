@@ -6,29 +6,31 @@ from collections.abc import Callable
 from .CellContentOperators import operatornames, doFiltering
 
 class TableFilter(ABC):
-    
-    def __init__(self, callback: Callable[[Callable], None] = None):
-        """
-        Create an interface to filter the table data
-        Args:
-            callback: Called when a filter operation is triggered in the interface. Call TableFilter.doFiltering in the function provided as callback.
-                    Args:   self.doFiltering
-                    Return: None
-        """
-        super().__init__()
-        self._filter_callback = lambda *args: callback(self.doFiltering)
-        return
-
 
     @abstractmethod
-    def doFiltering(self, searchfun: Callable[[str, str, str], list[str]]):
+    def updateResults(self, rownames: list[str]) -> None:
         """
-        Perform the actual filtering after the filter operation is triggered.
+        Update the internal data if necessary when a filtering has been performed.
         Args:
-            searchfun: A handle to the function that applies the filters provided by the TableFilter
-                    Args:   columnLabel:    the label of the column from which the element for this operator is  taken
-                            value:          the value that is compared with the element
-                            operator:       one of the binary operators defined in CellContentOperators that compares the element to the given value
-                    Return: a list of row labels for which the binary operator returns True
+            rownames:   the result of the filtering. Can be None if no filtering has been performed.
         """
         pass
+
+    @abstractmethod
+    def getFilterStructure(self):
+        """"""
+        pass
+
+
+    def doFiltering(self, data, columnDict) -> list[str]:
+        """
+        ...
+        Args:
+            ...
+        Return returns a list of row IDs, can be None if no filter is applied
+        """
+        F = self.getFilterStructure();
+        rowIds = doFiltering(data, columnDict, F)
+        if rowIds is None:
+            self.updateResults(list(range(len(data))))        
+        return rowIds

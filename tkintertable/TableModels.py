@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import, division, print_function
 from .TableFormula import Formula
-from . import Filtering
+from .CellContentOperators import doFiltering
 from types import *
 from collections import OrderedDict
 import operator
@@ -545,11 +545,16 @@ class TableModel(object):
             filters is a tuple of the form (key,value,operator,bool)"""
         if columnIndex != None and columnIndex < len(self.columnNames):
             columnName = self.getColumnName(columnIndex)
-        names = Filtering.doFiltering(searchfunc=self.filterBy,
-                                         filters=filters)
-        coldata = [self.data[n][columnName] for n in names]
+        rowids = doFiltering(self.data, self.getColumnDict(), filters=filters)
+        if rowids is None:
+            rowids = list(range(len(self.data)))
+        coldata = [self.data[n][columnName] for n in rowids]
         return coldata
 
+    def getColumnDict(self):
+        """ Return the dictionary that maps column labels to column names """
+        return {y: x for x, y in self.columnlabels.items()}
+    
     def getColumns(self, colnames, filters=None, allowempty=True):
         """Get column data for multiple cols, with given filter options,
             filterby: list of tuples of the form (key,value,operator,bool)
@@ -580,39 +585,6 @@ class TableModel(object):
         for name,cdata in zip(names, coldata):
             data[name] = dict(zip(colnames,cdata))
         return data
-
-    def filterBy(self, filtercol, value, op='contains', userecnames=False,
-                     progresscallback=None):
-        """The searching function that we apply to the model data.
-           This is used in Filtering.doFiltering to find the required recs
-           according to column, value and an operator"""
-
-        funcs = Filtering.operatornames
-        floatops = ['=','>','<']
-        func = funcs[op]
-        data = self.data
-        #coltype = self.columntypes[filtercol]
-        names=[]
-        for rec in self.reclist:
-            if filtercol in data[rec]:
-                #try to do float comparisons if required
-                if op in floatops:
-                    try:
-                        #print float(data[rec][filtercol])
-                        item = float(data[rec][filtercol])
-                        v = float(value)
-                        if func(v, item) == True:
-                            names.append(rec)
-                        continue
-                    except:
-                        pass
-                if filtercol == 'name' and userecnames == True:
-                    item = rec
-                else:
-                    item = str(data[rec][filtercol])
-                if func(value, item):
-                    names.append(rec)
-        return names
 
     def getRowCount(self):
          """Returns the number of rows in the table model."""

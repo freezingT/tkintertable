@@ -51,6 +51,7 @@ except ImportError:
     from typing_extensions import Literal
 from types import *
 from .CellContentOperators import *
+from .Filtering import TableFilter
 
 
 def getOperators(fieldtype: str) -> list[str]:
@@ -66,7 +67,7 @@ def getOperators(fieldtype: str) -> list[str]:
     return lst
     
 
-class FilterPanel(Frame):
+class FilterPanel(Frame, TableFilter):
 
     def __init__(self, parent, fields, fieldtypes: list[Literal["text", "number", "date"]]=None, callback=None):
         """Create a filtering gui frame.
@@ -101,29 +102,21 @@ class FilterPanel(Frame):
     def getFieldType(self, fieldname):
         return self.fieldtypes[self.fields.index(fieldname)]
 
-    def doFiltering(self, searchfunc, trigger_index=-1):
-        F=[]
-        for f in self.filters:
-            if f.isValid():
-                F.append(f.getFilter())
-        if len(F) == 0:
-            F = None
-
-        names = doFiltering(searchfunc, F)
-        self.updateResults(len(names))
-        return names
 
     def _triggerFiltering(self, trigger_index=-1):
+        self.callback(self.doFiltering)
+        return
+
+    def getFilterStructure(self):
         F=[]
         for f in self.filters:
             if f.isValid():
                 F.append(f.getFilter())
+        return F
 
-        n = self.callback(F)
-        self.updateResults(n)
 
-    def updateResults(self, i):
-        #self.resultsvar.set(i)
+    def updateResults(self, rownames):
+        # do nothing
         return
 
 
@@ -216,7 +209,7 @@ class FilterBar(Frame):
             changed = self._valueselected != self.filtercolvalue.get()
             self._valueselected = self.filtercolvalue.get()
 
-        if changed and self.isValid():
+        if changed:
             self.filterframe._triggerFiltering(self.index)
         return
     

@@ -75,30 +75,69 @@ operatornames = {'=': equals,
                 'before': beforeDateTime,
                 'since': sinceDateTime}
 
-def doFiltering(searchfunc, filters=None):
+def _filterBy(data, columndict, filtercol, value, op='contains', userecnames=False,
+                    progresscallback=None):
+    """The searching function that we apply to the model data.
+        This is used in Filtering.doFiltering to find the required recs
+        according to column, value and an operator"""
+
+    funcs = operatornames
+    floatops = ['=','>','<']
+    func = funcs[op]
+    filtercolname = columndict[filtercol]
+    rowIds=[]
+    
+    if isinstance(data, dict):
+        keylist = data.keys()
+    elif isinstance(data, list):
+        keylist = range(len(data))
+    else:
+        raise RuntimeError("Unexpected data type.")
+
+    for rec in keylist:
+        if filtercolname in data[rec]:
+            #try to do float comparisons if required
+            if op in floatops:
+                try:
+                    #print float(data[rec][filtercolname])
+                    item = float(data[rec][filtercolname])
+                    v = float(value)
+                    if func(v, item) == True:
+                        rowIds.append(rec)
+                    continue
+                except:
+                    pass
+            item = str(data[rec][filtercolname])
+            if func(value, item):
+                rowIds.append(rec)
+    return rowIds
+
+def doFiltering(data, columndict, filters=None):
     """Module level method. Filter recs by several filters using a user provided
        search function.
        filters is a list of tuples of the form (key,value,operator,bool)
-       returns: found record keys"""
+       returns: found record keys or None to reset the filtering
+    """
 
-    if filters == None:
-        return
+    if filters == None or len(filters) == 0:
+        return None
     F = filters
     sets = []
     for f in F:
         col, val, op, boolean = f
-        names = searchfunc(col, val, op)
-        sets.append((set(names), boolean))
-    names = sets[0][0]
+        rowIds = _filterBy(data, columndict, col, val, op)
+        sets.append((set(rowIds), boolean))
+    rowIds = sets[0][0]
     for s in sets[1:]:
         b=s[1]
         if b == 'AND':
-            names = names & s[0]
+            rowIds = rowIds & s[0]
         elif b == 'OR':
-            names = names | s[0]
+            rowIds = rowIds | s[0]
         elif b == 'NOT':
-            names = names - s[0]
+            rowIds = rowIds - s[0]
         #print len(names)
-    names = list(names)
-    return names
+    rowIds = list(rowIds)
+    return rowIds
+
 

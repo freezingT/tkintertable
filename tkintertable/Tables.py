@@ -92,9 +92,9 @@ class TableCanvas(Canvas):
         self.filtered = False
         self.rowUpdateRequired = False
         self.resetToMinRowHeight = False
-        self.filterdialog = filterdialogfactory
-        if self.filterdialog is not None:
-            self.filterdialog.subscribe(self.tiggerFiltering, self.showAll)
+        self.filterdialogfactory = filterdialogfactory
+        if self.filterdialogfactory is not None:
+            self.filterdialogfactory.subscribe(self.tiggerFiltering, self.showAll)
 
         self.loadPrefs()
         #set any options passed in kwargs to overwrite defaults and prefs
@@ -778,11 +778,15 @@ class TableCanvas(Canvas):
         """
         if self.model==None:
             return
-        names = doFilterCallback(searchfunc=self.model.filterBy)
-        #create a list of filtered recs
-        self.model.filteredrecs = names
-        self.filtered = True
-        self.redrawTable()
+        rowIds = doFilterCallback(self.model.data, self.model.getColumnDict())
+        if rowIds is None:
+            if self.model.filteredrecs is not None:
+                self.showAll()
+        else:
+            #create a list of filtered recs
+            self.model.filteredrecs = rowIds
+            self.filtered = True
+            self.redrawTable()
         return
 
     def resizeColumn(self, col, width):
@@ -1441,8 +1445,8 @@ class TableCanvas(Canvas):
             this function, it will take its values from defined dicts in constructor"""
         
         fdialog = None
-        if self.filterdialog is not None:
-            fdialog = lambda : self.filterdialog.createFilteringDialog(parent=self, fields=self.model.columnNames)
+        if self.filterdialogfactory is not None:
+            fdialog = lambda : self.filterdialogfactory.createFilteringDialog(parent=self, fields=self.model.columnNames)
 
         defaultactions = {"Set Fill Color" : lambda : self.setcellColor(rows,cols,key='bg'),
                         "Set Text Color" : lambda : self.setcellColor(rows,cols,key='fg'),
@@ -1468,13 +1472,13 @@ class TableCanvas(Canvas):
                         "Preferences" : self.showtablePrefs,
                         "Formulae->Value" : lambda : self.convertFormulae(rows, cols)}
 
-        if self.filterdialog is None:
+        if self.filterdialogfactory is None:
             del defaultactions['Filter Records']
 
         main = ["Set Fill Color","Set Text Color","Copy", "Paste", "View Record", "Fill Down","Fill Right",
                 "Clear Data"]
         general = ["Select All", "Add Row(s)" , "Delete Row(s)", "Auto Fit Columns", "Filter Records", "Preferences"]
-        if self.filterdialog is None:
+        if self.filterdialogfactory is None:
             general.remove('Filter Records')
         filecommands = ['New','Load','Save','Import text','Export csv']
         plotcommands = ['Plot Selected','Plot Options']

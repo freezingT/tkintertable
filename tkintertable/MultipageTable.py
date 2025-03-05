@@ -1,7 +1,7 @@
 
 from tkinter import Frame
 from .FilterPanel import FilterPanel
-from .CellContentOperators import operatornames, doFiltering as F_doFiltering
+from .CellContentOperators import doFiltering
 from operator import itemgetter
 import pandas
 
@@ -21,10 +21,6 @@ class MultipageTable(Frame):
         """
         
         Frame.__init__(self, parent)
-
-        self._filtering = FilterPanel(self, columnTitles, fieldtypes=fieldtypes, callback=self.filterData) # TODO move to parent
-        self._filtering.pack(side="top", expand=False, fill="x", anchor="n")
-
         self._outerFrame = Frame(self)
         self._outerFrame.pack(side="top", fill="both", expand=True, anchor="n")
 
@@ -135,7 +131,7 @@ class MultipageTable(Frame):
         self._table.deletePopups()
         self._table.requireRowHeightReset()
         if self._filteredData is not None:
-            self.replaceTableData(self._filteredData[datrange[0]:datrange[1]], rownames=rownames)
+           self.replaceTableData(self._filteredData[datrange[0]:datrange[1]], rownames=rownames)
         else:
             self.replaceTableData(self._data[datrange[0]:datrange[1]], rownames=rownames)
         self._table.set_yviews('moveto', 0) # reset view to first line
@@ -215,55 +211,38 @@ class MultipageTable(Frame):
         self._table.model.addRow(keyname, **dictdata)
         return
 
-    def _setFilteredData(self, rowids):
+    def _setFilteredData(self, rowids) -> int:
         if rowids is None:
-            self._filteredData = None
-            self._navtab.updateN(len(self._data))
+            if self._filteredData is not None:
+                self.showAll()
+            return len(self._data)
         elif len(rowids) == 0:
             self._filteredData = []
             self._navtab.updateN(0)
+            n = 0
+        elif len(rowids) == 1:
+            self._filteredData = (self._data[rowids[0]],)
+            self._navtab.updateN(1)
+            n = 1
         else:
             self._filteredData = itemgetter(*rowids)(self._data)
             self._navtab.updateN(len(self._filteredData))
-        return
-
-    def filterData(self, filters):
-        rowids = F_doFiltering(self.filterBy, filters)
-        self._setFilteredData(rowids)
-        if rowids is None:
-            n = len(self._data)
-        else:
             n = len(rowids)
         self._changePage()
         return n
 
-    def filterBy(self, filtercol, value, op='contains', userecnames=False,
-                     progresscallback=None):
-        """The searching function that we apply to the model data.
-           This is used in Filtering.doFiltering to find the required recs
-           according to column, value and an operator"""
+    def showAll(self):
+        self._filteredData = None
+        self._navtab.updateN(len(self._data))
+        self._changePage()
+        return
 
-        funcs = operatornames
-        floatops = ['=','>','<']
-        func = funcs[op]
-        data = self._data
-        filtercolname = self.getColumnDict()[filtercol]
-        #coltype = self.columntypes[filtercol]
-        names=[]
-        for rec in range(len(data)):
-            if filtercolname in data[rec]:
-                #try to do float comparisons if required
-                if op in floatops:
-                    try:
-                        #print float(data[rec][filtercolname])
-                        item = float(data[rec][filtercolname])
-                        v = float(value)
-                        if func(v, item) == True:
-                            names.append(rec)
-                        continue
-                    except:
-                        pass
-                item = str(data[rec][filtercolname])
-                if func(value, item):
-                    names.append(rec)
-        return names
+    def triggerFiltering(self, doFilterCallback, event=None):
+        rowids = doFilterCallback(self._data, self.getColumnDict())
+        n = self._setFilteredData(rowids)
+        return n
+
+    def filterData(self, filters) -> int:
+        rowids = doFiltering(self.data, self.getColumnDict(), filters)
+        n = self._setFilteredData(rowids)
+        return n
