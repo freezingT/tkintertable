@@ -24,5 +24,6 @@
 from .Tables import *
 from .TableModels import *
 from .MultipageTable import *
+from .SortingPanel import SortingPanel
 
 __version__ = '1.3.3'
