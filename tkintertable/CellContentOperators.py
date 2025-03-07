@@ -75,7 +75,7 @@ operatornames = {'=': equals,
                 'before': beforeDateTime,
                 'since': sinceDateTime}
 
-def _filterBy(data, columndict, filtercol, value, op='contains', userecnames=False,
+def _filterBy(data, filtercol, value, op='contains', columndict=None, userecnames=False,
                     progresscallback=None):
     """The searching function that we apply to the model data.
         This is used in Filtering.doFiltering to find the required recs
@@ -84,7 +84,10 @@ def _filterBy(data, columndict, filtercol, value, op='contains', userecnames=Fal
     funcs = operatornames
     floatops = ['=','>','<']
     func = funcs[op]
-    filtercolname = columndict[filtercol]
+    if columndict is not None:
+        filtercolname = columndict[filtercol]
+    else:
+        filtercolname = filtercol
     rowIds=[]
     
     if isinstance(data, dict):
@@ -112,7 +115,7 @@ def _filterBy(data, columndict, filtercol, value, op='contains', userecnames=Fal
                 rowIds.append(rec)
     return rowIds
 
-def doFiltering(data, columndict, filters=None):
+def doFiltering(data, columndict=None, filters=None):
     """Module level method. Filter recs by several filters using a user provided
        search function.
        filters is a list of tuples of the form (key,value,operator,bool)
@@ -125,7 +128,7 @@ def doFiltering(data, columndict, filters=None):
     sets = []
     for f in F:
         col, val, op, boolean = f
-        rowIds = _filterBy(data, columndict, col, val, op)
+        rowIds = _filterBy(data, col, val, op, columndict)
         sets.append((set(rowIds), boolean))
     rowIds = sets[0][0]
     for s in sets[1:]:

@@ -94,7 +94,7 @@ class TableCanvas(Canvas):
         self.resetToMinRowHeight = False
         self.filterdialogfactory = filterdialogfactory
         if self.filterdialogfactory is not None:
-            self.filterdialogfactory.subscribe(self.tiggerFiltering, self.showAll)
+            self.filterdialogfactory.subscribe(self.triggerFiltering, self.showAll)
 
         self.loadPrefs()
         #set any options passed in kwargs to overwrite defaults and prefs
@@ -770,7 +770,7 @@ class TableCanvas(Canvas):
         self.redrawTable()
         return
 
-    def tiggerFiltering(self, doFilterCallback, event=None):
+    def triggerFiltering(self, doFilterCallback, event=None):
         """Filter the table display by some column values.
         We simply pass the model search function to the the filtering
         class and that handles everything else.

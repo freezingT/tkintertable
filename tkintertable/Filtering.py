@@ -22,7 +22,7 @@ class TableFilter(ABC):
         pass
 
 
-    def doFiltering(self, data, columnDict) -> list[str]:
+    def doFiltering(self, data, columnDict=None) -> list[str]:
         """
         ...
         Args:
