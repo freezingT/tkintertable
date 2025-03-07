@@ -789,6 +789,12 @@ class TableCanvas(Canvas):
             self.redrawTable()
         return
 
+    def triggerSorting(self, doSortCallback):
+        """Function that is called when the sorting of the data is triggered."""
+        doSortCallback((self.model.data, self.model.reclist), self.model.getColumnDict())
+        self.redrawTable()
+        return
+    
     def resizeColumn(self, col, width):
         """Resize a column by dragging"""
 

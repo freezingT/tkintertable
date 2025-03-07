@@ -35,9 +35,11 @@ def start_app():
 
     #Tables.TableCanvas(masterframe, data=thedata)
     example = tktab.MultipageTable(masterframe, thedata, dataparam=datainfo, columnTitles=columns)
-    filtering = tktab.FilterPanel(example, columns, fieldtypes=None, callback=example.triggerFiltering)
+    filtering = tktab.FilterPanel(masterframe, columns, fieldtypes=None, callback=example.triggerFiltering)
+    sorting = tktab.SortingPanel(masterframe, fields=columns, callback=example.triggerSorting)
 
     filtering.pack(side="top", expand=False, fill="x")
+    sorting.pack(side="top", expand=False, fill="x")
     example.pack(side="top", fill="both", expand=True)
 
     root.mainloop()

@@ -102,7 +102,7 @@ class SortingPanel(Frame, TableSorter):
         self._fields = fields
         self._sortCallback = callback
 
-        self._outerframe = Frame(self, height=30)
+        self._outerframe = Frame(self, height=34)
         self._outerframe.pack(side=tk.LEFT, fill="x", expand=True, padx=2, pady=2)
 
         #self._add_button = OptionMenu(self, values=['Option 1', 'Option 2', 'Option 3'], command=self.addNewSortingBar, width=10)
