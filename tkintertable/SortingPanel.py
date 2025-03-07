@@ -14,6 +14,8 @@ from bisect import bisect
 from functools import partial
 import math
 
+from .Sorting import TableSorter
+
 class SortingBarMoveManager:
     '''Contains information required for dragging/moving SortingBars'''
 
@@ -84,7 +86,7 @@ class SortingBarMoveManager:
         return cA
 
 
-class SortingFrame(Frame):
+class SortingPanel(Frame, TableSorter):
     """Base class for the panel that enables sorting the Table."""
     def __init__(self, parent: tk.Tk, fields: list[str], callback=None):
         """
@@ -126,6 +128,7 @@ class SortingFrame(Frame):
         sortingBar = SortingBar(self._outerframe, thetext, column_index, deletionCallback=self.deleteSortingBarFromPanel, moveCallback=self._moveCallbackHandle, statusChangedCallback=self._triggerSorting)
         sortingBar.pack(side=tk.LEFT, fill="none", expand=False, padx=self._xpad_bar, pady=4)
         self._sortingBars.append(sortingBar)
+        self._triggerSorting()
         return
 
     def deleteSortingBarFromPanel(self, column_index):
@@ -155,20 +158,33 @@ class SortingFrame(Frame):
         return
 
     def _triggerSorting(self):
-        '''Calls the given sort callback with a list of sort specs. Each spec is a tuple of the column name and a "descend"-flag.'''
-        specs = []
-        for sb in self._sortingBars:
-            specs.append((self._fields[sb.getIndex()], sb.getStatus=="descending"))
-        self._sortCallback(specs)
+        '''Calls the given sort callback to trigger the sorting.'''
+        self._sortCallback(self.doSorting)
         return
     
+    def getSortSpecification(self):
+        specs = []
+        for sb in self._sortingBars:
+            specs.append((self._fields[sb.getIndex()], sb.getStatus()=="ascending"))
+        return specs
+
     def _getAllWidths(self):
+        """Get the widths of all sortingBars."""
         widths = []
         for i, sb in enumerate(self._sortingBars):
             widths.append(sb.getCurrentWidth())
         return widths
 
     def _moveCallbackHandle(self, status, arg):
+        """
+        Handle that is called by the SortingBars when the user grabs and moves it.
+        Args:
+            status: The status of the move action: 
+                        0: Mouse pressed
+                        1: Pressed mouse moved
+                        2: Mouse released
+            arg:    Argument, depending on status. See Documentation of the SortingBar class for more details.
+        """
         if status == 0:
             widths = self._getAllWidths()
             posIndex = self._panelColumnIndexList.index(arg)
@@ -202,6 +218,7 @@ class SortingFrame(Frame):
                 index -= 1
                 #self._sortingBars[index].setIndex(index)
                 diff += 1
+        self._triggerSorting()
         return
 
 

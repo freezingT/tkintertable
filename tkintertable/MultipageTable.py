@@ -119,6 +119,7 @@ class MultipageTable(Frame):
     def replaceTableData(self, data, rownames=None):
         self.__table_setData(data, rownames=rownames)
         self._table.redraw()
+        return
 
     def _getPageDataRange(self):
         navtabdata = self._navtab.getStateData()
@@ -135,6 +136,7 @@ class MultipageTable(Frame):
         else:
             self.replaceTableData(self._data[datrange[0]:datrange[1]], rownames=rownames)
         self._table.set_yviews('moveto', 0) # reset view to first line
+        return
 
     def _parseData(self, data, datainfo=()):
         """
@@ -221,11 +223,11 @@ class MultipageTable(Frame):
             self._navtab.updateN(0)
             n = 0
         elif len(rowids) == 1:
-            self._filteredData = (self._data[rowids[0]],)
+            self._filteredData = [self._data[rowids[0]]]
             self._navtab.updateN(1)
             n = 1
         else:
-            self._filteredData = itemgetter(*rowids)(self._data)
+            self._filteredData = list(itemgetter(*rowids)(self._data))
             self._navtab.updateN(len(self._filteredData))
             n = len(rowids)
         self._changePage()
@@ -237,7 +239,7 @@ class MultipageTable(Frame):
         self._changePage()
         return
 
-    def triggerFiltering(self, doFilterCallback, event=None):
+    def triggerFiltering(self, doFilterCallback):
         rowids = doFilterCallback(self._data, self.getColumnDict())
         n = self._setFilteredData(rowids)
         return n
@@ -246,3 +248,12 @@ class MultipageTable(Frame):
         rowids = doFiltering(self.data, self.getColumnDict(), filters)
         n = self._setFilteredData(rowids)
         return n
+    
+    def triggerSorting(self, doSortCallback):
+        """Function that is called when the sorting of the data is triggered."""
+        doSortCallback(self._data, self.getColumnDict())
+        if self._filteredData is not None:
+            doSortCallback(self._filteredData, self.getColumnDict())        
+        self._changePage()
+        return
+    
