@@ -13,6 +13,7 @@ except:
 from bisect import bisect
 from functools import partial
 import math
+import importlib.resources
 
 from .Sorting import TableSorter
 
@@ -314,10 +315,12 @@ class SortingBar(Frame):
         
     def _loadRessources(self):
         """Load images"""
-        self._imgA = tk.PhotoImage(name="img_ascending", file="gui/assets/ascending.png")
-        self._imgD = tk.PhotoImage(name="img_descending", file="gui/assets/descending.png")
+        module_path = importlib.resources.files(__package__)
+        asset_path = module_path / ".." / "assets" / "images"
+        self._imgA = tk.PhotoImage(name="img_ascending", file=asset_path / "ascending.png")
+        self._imgD = tk.PhotoImage(name="img_descending", file=asset_path / "descending.png")
         self._imgAD_width = max(self._imgA.width(), self._imgD.width())
-        self._imgG = tk.PhotoImage(name="img_grabber", file="gui/assets/grabbing-v2.png")
+        self._imgG = tk.PhotoImage(name="img_grabber", file=asset_path / "grabbing.png")
         self._imgG_width = self._imgG.width()
         return
 
