@@ -1,11 +1,16 @@
+"""
+Module defines TableFilter interface for classes providing filtering 
+functionality for a Table object and provides the doFiltering method
+to perform a filtering.
+"""
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 
 # provide when this module is imported:
-from .CellContentOperators import operatornames, doFiltering
+from .CellContentOperators import doFiltering
 
 class TableFilter(ABC):
+    """Abstract class that provides filter functionality for Table objects"""
 
     @abstractmethod
     def updateResults(self, rownames: list[str]) -> None:
@@ -14,13 +19,10 @@ class TableFilter(ABC):
         Args:
             rownames:   the result of the filtering. Can be None if no filtering has been performed.
         """
-        pass
 
     @abstractmethod
-    def getFilterStructure(self):
-        """"""
-        pass
-
+    def getFilterStructure(self) -> list[(str, str, str, bool)]:
+        """Return the structure containing information on  the filters applied to the table."""
 
     def doFiltering(self, data, columnDict=None) -> list[str]:
         """
@@ -29,8 +31,9 @@ class TableFilter(ABC):
             ...
         Return returns a list of row IDs, can be None if no filter is applied
         """
-        F = self.getFilterStructure();
-        rowIds = doFiltering(data, columnDict, F)
-        if rowIds is None:
-            self.updateResults(list(range(len(data))))        
-        return rowIds
+        filter_structure = self.getFilterStructure()
+        row_ids = doFiltering(data, columnDict, filter_structure)
+        if row_ids is None:
+            self.updateResults(list(range(len(data))))
+        return row_ids
+    

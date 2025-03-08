@@ -21,17 +21,16 @@
 
 from __future__ import absolute_import, division, print_function
 try:
-    from tkinter import *
-    from tkinter.ttk import *
-except:
-    from Tkinter import *
-    from ttk import *
-#import Pmw
-from types import *
-from .CellContentOperators import *
-from .Filtering import TableFilter
+    from tkinter import IntVar, StringVar
+    from tkinter.ttk import Frame, Button, Label, Combobox, Entry
+except ModuleNotFoundError:
+    from Tkinter import IntVar, StringVar
+    from ttk import Frame, Button, Label, Combobox, Entry
+
+from tkintertable.Filtering import TableFilter
 
 class FilterDialog(Frame, TableFilter):
+    """Toplevel tkinter dialog to provide filtering functionality for a Table object"""
 
     def __init__(self, parent, fields, callback=None, closecallback=None):
         """Create a filtering gui frame.
@@ -71,10 +70,10 @@ class FilterDialog(Frame, TableFilter):
         return
 
     def getFilterStructure(self):
-        F=[]
+        filter_structure=[]
         for f in self.filters:
-            F.append(f.getFilter())
-        return F
+            filter_structure.append(f.getFilter())
+        return filter_structure
 
     def updateResults(self, rownames):
         self.resultsvar.set(len(rownames))
@@ -90,7 +89,6 @@ class FilterBar(Frame):
         self.parent=parent
         self.index = index
         self.filtercol=StringVar()
-        initial = fields[0]
         filtercolmenu = Combobox(self,
                 #labelpos = 'w',
                 #label_text = 'Column:',
