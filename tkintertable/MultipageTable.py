@@ -9,8 +9,9 @@ from .Tables import TableCanvas
 from .NavigationPanel import NavigationPanel
 
 class MultipageTable(Frame):
-    def __init__(self, parent, data, columnTitles, dataparam=(), nPerPage=100, fieldtypes=None, filterdialogfactory=None):
-        """  
+    def __init__(self, parent, data, columnTitles, dataparam=(), nPerPage=100, fieldtypes=None, dataconstructors={}, filterdialogfactory=None):
+        """ 
+        Table that displays its rows on multiple pages. Navigation is possible using buttons at the bottom.
 
         Args:
         parent (tk object)
@@ -24,7 +25,7 @@ class MultipageTable(Frame):
         self._outerFrame = Frame(self)
         self._outerFrame.pack(side="top", fill="both", expand=True, anchor="n")
 
-        [self._data, ndata, self._ncols] = self._parseData(data, datainfo=dataparam)
+        [self._data, ndata, self._ncols] = self._parseData(data, datainfo=dataparam, dataconstructors=dataconstructors)
         self._filteredData = None
         nrows = 0
 
@@ -138,7 +139,7 @@ class MultipageTable(Frame):
         self._table.set_yviews('moveto', 0) # reset view to first line
         return
 
-    def _parseData(self, data, datainfo=()):
+    def _parseData(self, data, datainfo=(), dataconstructors={}):
         """
         Transform the given data into the format described below and return the data in the new format and the number of rows and columns
 
@@ -161,7 +162,10 @@ class MultipageTable(Frame):
             for idx, row in df.iterrows():
                 rowdat = {}
                 for idxcol, colname in enumerate(columntitles):
-                    rowdat[str(idxcol+1)] = row[colname]
+                    if colname in dataconstructors:
+                        rowdat[str(idxcol+1)] = dataconstructors[colname](row[colname])
+                    else:
+                        rowdat[str(idxcol+1)] = row[colname]
                 lst.append(rowdat)
             return lst, len(lst), len(columntitles) # return data, ndata, ncols
         
