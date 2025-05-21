@@ -5,7 +5,11 @@
 from typing import Union, Callable
 import pandas
 
-from util.exceptions import UserInterruptException
+
+class UserInterruptException(Exception):
+    """User requested interruption."""
+    def __init__(self, *args):
+        super().__init__(*args)
 
 
 def _nonefun(num):

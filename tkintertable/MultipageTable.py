@@ -5,7 +5,6 @@ import tkinter as tk
 from tkinter import Frame
 from operator import itemgetter
 from typing import Union, Callable
-import pandas
 
 from .CellContentOperators import doFiltering
 from .Tables import TableCanvas
