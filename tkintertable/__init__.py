@@ -24,6 +24,13 @@
 from .Tables import *
 from .TableModels import *
 from .MultipageTable import *
+
 from .SortingPanel import SortingPanel
+from .Sorting import TableSorter, doSorting
+
+from .FilterPanel import FilterPanel
+from .Filtering import TableFilter
+from .FilterDialogFactory import FilterDialogFactory
+from .FilterDialogFactoryInterface import FilterDialogFactoryInterface
 
 __version__ = '1.3.3'
