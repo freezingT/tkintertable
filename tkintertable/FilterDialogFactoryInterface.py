@@ -1,3 +1,6 @@
+"""
+FilterDialogFactory interface
+"""
 import tkinter as tk
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -5,15 +8,14 @@ from collections.abc import Callable
 class FilterDialogFactoryInterface(ABC):
 
     @abstractmethod
-    def createFilteringDialog(self, parent: tk.Tk, fields: list[str]):        
+    def createFilteringDialog(self, parent: tk.Tk, fields: list[str]):
         """
         Create and show new Filtering Dialog
         Args:
             parent: the parent Frame (to get the geometry)
             fields: the names of the fields to show (column names in which a filter can be applied)
         """
-        pass
-        
+
     @abstractmethod
     def subscribe(self, doFilter : Callable[[Callable], None], showAll : Callable[[None], None] = None):
         """
@@ -23,4 +25,3 @@ class FilterDialogFactoryInterface(ABC):
                     Args:   Callback function: Callable[[str, str, str], list[str]]. For more details see description in Filtering.TableFilter.doFiltering
                     Return: None
         """
-        pass

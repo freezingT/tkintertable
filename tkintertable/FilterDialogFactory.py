@@ -1,15 +1,19 @@
-from .FilterDialog import FilterDialog
-from .FilterDialogFactoryInterface import FilterDialogFactoryInterface as FDFI
-
+"""
+Create FilterDialog objects.
+"""
 from tkinter import Toplevel
 import tkinter as tk
 
+from .FilterDialog import FilterDialog
+from .FilterDialogFactoryInterface import FilterDialogFactoryInterface as FDFI
+
 
 class FilterDialogFactory(FDFI):
+    """Class to spawn filter dialogs."""
     def __init__(self):
         self.callback_doFilter = None
         self.callback_showAll = None
-        
+
         self.__geometry = None # (x,y,w,h)
         self.__fields = None
 
@@ -21,7 +25,7 @@ class FilterDialogFactory(FDFI):
         self.callback_showAll = showAll
         return
 
-    def createFilteringDialog(self, parent: tk.Tk, fields: list[str]):        
+    def createFilteringDialog(self, parent: tk.Tk, fields: list[str]):
         """
         Create and show new Filtering Dialog
         Args:
@@ -29,7 +33,7 @@ class FilterDialogFactory(FDFI):
             fields: the names of the fields to show (column names in which a filter can be applied)
         """
 
-        noExistentWindow = not hasattr(self, 'filterwin') or self.filterwin == None
+        noExistentWindow = not hasattr(self, 'filterwin') or self.filterwin is None
         if not noExistentWindow and self.__fields != fields: # close the existing window if the fields are no longer the same
             self.__closeFilterFrame()
             noExistentWindow = True
@@ -42,12 +46,12 @@ class FilterDialogFactory(FDFI):
         else:
             self.filterwin.lift()
         return
-        
+
 
     def __createToplevelWindow(self):
         window = Toplevel()
         window.title('Filter Records')
-        x,y,w,h = self.__geometry
+        x,y,_,h = self.__geometry
         window.geometry('+%s+%s' %(x,y+h))
         return window
 
@@ -60,12 +64,12 @@ class FilterDialogFactory(FDFI):
             raise RuntimeError("Subscribe the FilterDialogFactory first to provide a callback method called to trigger the filtering.")
         filterdialog = FilterDialog(window, fields=self.__fields, callback=self.callback_doFilter, closecallback=self.__closeFilterFrame)
         filterdialog.pack()
-        return window    
+        return window
 
     def __getGeometry(self, parent):
         self.__geometry = parent.getGeometry(parent.master)
         return
-        
+
     def __closeFilterFrame(self):
         """Callback for closing filter frame"""
         self.filterwin.destroy()

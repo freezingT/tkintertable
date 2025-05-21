@@ -1,13 +1,15 @@
+"""
+"""
 try:
     import tkinter as tk # type: ignore
     from tkinter import Menubutton, Menu, Canvas # type: ignore
-except:
+except ImportError:
     import Tkinter as tk # type: ignore
     from Tkinter import Menubutton, Menu, Canvas # type: ignore
 
 try:
     from customtkinter import CTkFrame as Frame
-except:
+except ImportError:
     Frame = tk.Frame
 
 from bisect import bisect
@@ -58,7 +60,7 @@ class SortingBarMoveManager:
         '''Switch the accumWidths array to give accumulated widths for switched width[i] <-> width[i+1]'''
         wi = self._accumWidths[i+2] - self._accumWidths[i+1]
         self._accumWidths[i+1] = self._accumWidths[i] + wi
-        return 
+        return
 
     def _computeNewIdx(self, x, dx):
         if dx < 0:
@@ -95,8 +97,13 @@ class SortingPanel(Frame, TableSorter):
         Args:
             parent:     parent widget
             fields:     list of column names
-            callback:   function that gets called when a sort is triggered. It is called with one argument, providing the sort specification in the following format:
-                        [(key0_colname, key0_isReversed), (key1_colname, key1_isReversed), ...]
+            callback:   function that gets called when a sort is triggered. It
+                            is called with one argument, providing the sort
+                            specification in the following format:
+                            [(key0_colname, key0_isReversed),
+                             (key1_colname, key1_isReversed),
+                             ...
+                            ]
         """
         Frame.__init__(self, parent)
 
@@ -106,13 +113,13 @@ class SortingPanel(Frame, TableSorter):
         self._outerframe = Frame(self, height=34)
         self._outerframe.pack(side=tk.LEFT, fill="x", expand=True, padx=2, pady=2)
 
-        #self._add_button = OptionMenu(self, values=['Option 1', 'Option 2', 'Option 3'], command=self.addNewSortingBar, width=10)
         self._add_button = Menubutton(self, text="+")
         self._add_button.pack(side=tk.LEFT, fill="none", expand=False, padx=2, pady=2)
         self._add_button.menu = Menu(self._add_button, tearoff=0)
-        self._add_button["menu"]= self._add_button.menu 
-        for i in range(len(fields)):
-            self._add_button.menu.add_command(label=fields[i], command=partial(self.addSortingBarToPanel, i))
+        self._add_button["menu"]= self._add_button.menu
+        for i, _ in enumerate(fields):
+            self._add_button.menu.add_command(label=fields[i],
+                                              command=partial(self.addSortingBarToPanel, i))
 
         self._sortingBars = [] # list of SortingBar objects
         self._panelColumnIndexList = [] # column indices in the panel objects
@@ -122,18 +129,30 @@ class SortingPanel(Frame, TableSorter):
         return
 
     def addSortingBarToPanel(self, column_index):
-        '''Create a new sorting item to the panel and trigger the removal of the respective MenuItem'''
+        '''
+        Create a new sorting item to the panel and trigger the removal of the
+        respective MenuItem
+        '''
         self._deleteButtonMenuItem(column_index)
 
         thetext = self._fields[column_index]
-        sortingBar = SortingBar(self._outerframe, thetext, column_index, deletionCallback=self.deleteSortingBarFromPanel, moveCallback=self._moveCallbackHandle, statusChangedCallback=self._triggerSorting)
+        sortingBar = SortingBar(self._outerframe,
+                                thetext,
+                                column_index,
+                                deletionCallback=self.deleteSortingBarFromPanel,
+                                moveCallback=self._moveCallbackHandle,
+                                statusChangedCallback=self._triggerSorting
+                                )
         sortingBar.pack(side=tk.LEFT, fill="none", expand=False, padx=self._xpad_bar, pady=4)
         self._sortingBars.append(sortingBar)
         self._triggerSorting()
         return
 
     def deleteSortingBarFromPanel(self, column_index):
-        '''Remove the SortinBar element at index field_index from the panel and trigger the creation of the respective MenuItem'''
+        '''
+        Remove the SortinBar element at index field_index from the panel and
+        trigger the creation of the respective MenuItem
+        '''
         panelList_index = self._panelColumnIndexList.index(column_index)
         del self._sortingBars[panelList_index]
         self._addButtonMenuItem(column_index)
@@ -141,16 +160,28 @@ class SortingPanel(Frame, TableSorter):
         return
 
     def _addButtonMenuItem(self, column_index):
-        '''Remove an index from the _sortingIndices list, insert it in the sorted _indexList and create the respective menu item in the dropdown menu'''
+        '''
+        Remove an index from the _sortingIndices list, insert it in the
+        sorted _indexList and create the respective menu item in the
+        dropdown menu
+        '''
         if column_index in self._panelColumnIndexList:
             index = bisect(self._menuColumnIndexList, column_index)
-            self._add_button.menu.insert_command(index, label=self._fields[column_index], command=partial(self.addSortingBarToPanel, column_index))
+            self._add_button.menu.insert_command(
+                index,
+                label=self._fields[column_index],
+                command=partial(self.addSortingBarToPanel, column_index)
+                )
             self._menuColumnIndexList.insert(index, column_index)
             self._panelColumnIndexList.remove(column_index)
         return
 
     def _deleteButtonMenuItem(self, column_index):
-        '''Remove an index from the sorted _indexList list, insert it in the _sortingIndices and remove the respective menu item in the dropdown menu'''
+        '''
+        Remove an index from the sorted _indexList list, insert it in the
+        _sortingIndices and remove the respective menu item in the
+        dropdown menu
+        '''
         if column_index not in self._panelColumnIndexList:
             index = self._menuColumnIndexList.index(column_index)
             self._add_button.menu.delete(index, index)
@@ -162,7 +193,7 @@ class SortingPanel(Frame, TableSorter):
         '''Calls the given sort callback to trigger the sorting.'''
         self._sortCallback(self.doSorting)
         return
-    
+
     def getSortSpecification(self):
         specs = []
         for sb in self._sortingBars:
@@ -172,7 +203,7 @@ class SortingPanel(Frame, TableSorter):
     def _getAllWidths(self):
         """Get the widths of all sortingBars."""
         widths = []
-        for i, sb in enumerate(self._sortingBars):
+        for _, sb in enumerate(self._sortingBars):
             widths.append(sb.getCurrentWidth())
         return widths
 
@@ -180,7 +211,7 @@ class SortingPanel(Frame, TableSorter):
         """
         Handle that is called by the SortingBars when the user grabs and moves it.
         Args:
-            status: The status of the move action: 
+            status: The status of the move action:
                         0: Mouse pressed
                         1: Pressed mouse moved
                         2: Mouse released
@@ -234,7 +265,7 @@ class SortingBar(Frame):
             maxWidth:               the maximum width for this element, set to 0 to ignore
             deletionCallback:       called if the SortingBar is deleted, takes one argument: the index that identifies the SortingBar
             moveCallback:           called if the object is moved, takes two arguments:
-                                        first: the status, is 0, 1 or 2 
+                                        first: the status, is 0, 1 or 2
                                         second: argument, depending on status:
                                         | status   | 0                 | 1                           | 2                           |
                                         |----------+-------------------+-----------------------------+-----------------------------|
@@ -256,9 +287,9 @@ class SortingBar(Frame):
         self._isDescending = True
         self._canvas = Canvas(self, width=self._width, height=self._height, bg="white")
         self._createGrabber()
-        self._createText(maxWidth)        
+        self._createText(maxWidth)
         self._createArrow()
-        
+
         self._canvas.pack(side="left")
 
         self.enforceWidth()
@@ -267,7 +298,7 @@ class SortingBar(Frame):
     def getCurrentWidth(self):
         """Get the current total width of the SortingBar"""
         return self._width
-    
+
     def enforceWidth(self, newWidth: int=None):
         """Set a maximal width of the SortingBar to reduce the text width if possible"""
         if newWidth is None:
@@ -279,7 +310,7 @@ class SortingBar(Frame):
         else:
             pass
         return
-    
+
     def getRequiredWidth(self):
         """Get the width required to display the full text"""
         return self._textWidth + self._imgAD_width + self._imgG_width + 10
@@ -306,13 +337,13 @@ class SortingBar(Frame):
         if self._cb_status is not None:
             self._cb_status()
         return
-    
+
     def close(self):
         """Destroy and remove from parent"""
         self._cb_delete(self._index)
         self.destroy()
         return
-        
+
     def _loadRessources(self):
         """Load images"""
         module_path = importlib.resources.files(__package__)
@@ -332,22 +363,34 @@ class SortingBar(Frame):
         self._canvas.bind('<Button-1>',self._grabber_mouse_click)
         self._canvas.bind("<ButtonRelease-1>", self._grabber_mouse_release)
         self._canvas.bind('<B1-Motion>', self._grabber_mouse_drag)
-        
+
         return
 
     def _createArrow(self):
         """Create the arrow on the right that indicates the sorting direction"""
         if self._isDescending:
-            self._arrow = self._canvas.create_image(self._width-2, self._height/2, image=self._imgD, anchor="e")
+            self._arrow = self._canvas.create_image(self._width-2,
+                                                    self._height/2,
+                                                    image=self._imgD,
+                                                    anchor="e"
+                                                    )
         else:
-            self._arrow = self._canvas.create_image(self._width-2, self._height/2, image=self._imgA, anchor="e")
+            self._arrow = self._canvas.create_image(self._width-2,
+                                                    self._height/2,
+                                                    image=self._imgA,
+                                                    anchor="e"
+                                                    )
         self._canvas.tag_bind(self._arrow, '<Button-1>', lambda event: self.changeStatus())
         return
 
     def _createText(self, maxWidth: int):
         """Create the text label"""
-        self._txt = self._canvas.create_text(self._imgAD_width+4, self._height/2, anchor="w", text=self._text)
-        
+        self._txt = self._canvas.create_text(self._imgAD_width+4,
+                                             self._height/2,
+                                             anchor="w",
+                                             text=self._text
+                                             )
+
         box = self._canvas.bbox(self._txt)
         self._textWidth = box[2]-box[0]
         if maxWidth > 0 and self._textWidth > maxWidth:
@@ -361,19 +404,19 @@ class SortingBar(Frame):
         if self._cb_move is not None:
             self._cb_move(0, self._index)
         return
-     
+
     def _grabber_mouse_drag(self, event):
         x = int(self._canvas.canvasx(event.x))
         dx = x - self._grabberX
 
         if self._cb_move is not None:
             self._cb_move(1, dx)
-        return 
-    
+        return
+
     def _grabber_mouse_release(self, event):
         x = int(self._canvas.canvasx(event.x))
         dx = x - self._grabberX
 
         if self._cb_move is not None:
             self._cb_move(2, dx)
-        return 
+        return

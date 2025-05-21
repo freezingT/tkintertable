@@ -1,5 +1,8 @@
+"""
+"""
 from abc import ABC, abstractmethod
 from operator import itemgetter
+from functools import partial
 
 
 def __getDictComprehension(lst):
@@ -11,7 +14,8 @@ def __sortList(data, spec, columndict):
     return
 
 def __sortfun(k, key, columndict, thedict):
-    # this function is necessary since it is not ensured that all row dicts contain all column name keys
+    # this function is necessary since it is not ensured that all
+    # row dicts contain all column name keys!
     columnId = columndict[key]
     if columnId in thedict[k].keys():
         return (0, thedict[k][columndict[key]])
@@ -20,7 +24,12 @@ def __sortfun(k, key, columndict, thedict):
 
 def __sortDict(thedict, keylist, spec, columndict):
     for key, rvrsed in reversed(spec):
-        keylist.sort(key=lambda k: __sortfun(k, key, columndict, thedict), reverse=rvrsed)
+        keylist.sort(key=partial(__sortfun,
+                                 key=key,
+                                 columndict=columndict,
+                                 thedict=thedict),
+                     reversed=rvrsed
+                     )
     return
 
 def doSorting(data, spec, columndict=None):
@@ -35,17 +44,18 @@ def doSorting(data, spec, columndict=None):
     else:
         __sortDict(data[0], data[1], spec, columndict)
     return
-        
+
 
 class TableSorter(ABC):
     @abstractmethod
     def getSortSpecification(self):
-        """Get a struct spec the describes the sorting. Each element in spec is a tuple of the column name and a "descend"-flag."""
-        pass
+        """
+        Get a struct spec the describes the sorting. Each element in spec
+        is a tuple of the column name and a "descend"-flag.
+        """
 
     def doSorting(self, data, columndict=None):
         """Performs the sorting inplace on the given data."""
         specs = self.getSortSpecification()
         doSorting(data, specs, columndict)
         return
-

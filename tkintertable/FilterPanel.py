@@ -23,10 +23,10 @@ from __future__ import absolute_import, division, print_function
 
 try:
     import tkinter as tk
-    from tkinter import StringVar, IntVar
-except:
+    from tkinter import StringVar
+except ImportError:
     import Tkinter as tk
-    from Tkinter import StringVar, IntVar
+    from Tkinter import StringVar
 
 try:
     from customtkinter import CTkFrame as Frame
@@ -35,8 +35,7 @@ try:
     from customtkinter import CTkComboBox as Combobox
     from customtkinter import CTkEntry as Entry
     from customtkinter import CTkScrollableFrame
-    from tkinter import filedialog, messagebox, simpledialog
-except:
+except ImportError:
     Frame = tk.Frame
     Button = tk.Button
     Label = tk.Label
@@ -49,15 +48,21 @@ try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal
-from types import *
-from .CellContentOperators import *
 from .Filtering import TableFilter
 
 
 def getOperators(fieldtype: str) -> list[str]:
     lst = []
     if fieldtype == "text":
-        lst = ['contains','excludes','starts with', 'ends with', 'contains (c.ins.)', 'starts with (c.ins.)', 'ends with (c.ins.)', 'regex']
+        lst = ['contains',
+               'excludes',
+               'starts with',
+               'ends with',
+               'contains (c.ins.)',
+               'starts with (c.ins.)',
+               'ends with (c.ins.)',
+               'regex'
+               ]
     elif fieldtype == "number":
         lst = ['=','!=','>','<']
     elif fieldtype == "date":
@@ -65,11 +70,16 @@ def getOperators(fieldtype: str) -> list[str]:
     else:
         pass
     return lst
-    
+
 
 class FilterPanel(Frame, TableFilter):
 
-    def __init__(self, parent, fields, fieldtypes: list[Literal["text", "number", "date"]]=None, callback=None):
+    def __init__(self,
+                 parent,
+                 fields,
+                 fieldtypes: list[Literal["text", "number", "date"]]=None,
+                 callback=None
+                 ):
         """Create a filtering gui frame.
         Callback must be some method that can accept tuples of filter
         parameters connected by boolean operators """
@@ -83,7 +93,7 @@ class FilterPanel(Frame, TableFilter):
         if len(fields) != len(fieldtypes):
             raise RuntimeError('Number of given fields and number of field types must match.')
         self.filters = []
-        
+
         self.filterframe = CTkScrollableFrame(self, height=100)
         self.filterframe._scrollbar.configure(height=100)
         self.filterframe.pack(side=tk.TOP, fill="x", expand=True, padx=2, pady=2, anchor="n")
@@ -103,16 +113,16 @@ class FilterPanel(Frame, TableFilter):
         return self.fieldtypes[self.fields.index(fieldname)]
 
 
-    def _triggerFiltering(self, trigger_index=-1):
+    def triggerFiltering(self, trigger_index=-1):
         self.callback(self.doFiltering)
         return
 
     def getFilterStructure(self):
-        F=[]
+        filter_structure=[]
         for f in self.filters:
             if f.isValid():
-                F.append(f.getFilter())
-        return F
+                filter_structure.append(f.getFilter())
+        return filter_structure
 
 
     def updateResults(self, rownames):
@@ -136,10 +146,24 @@ class FilterBar(Frame):
         self._label.pack(side=tk.LEFT, padx=(5, 2), pady=2)
         self.activated = False
 
+        # the following attributes are used when the bar is built
+        self._booleanselected = None
+        self._columnselected = None
+        self._operatorselected = None
+        self._valueselected = None
+        self.booleanop = None
+        self._booleanopmenu = None
+        self._filtercolmenu = None
+        self.operator = None
+        self._operatormenu = None
+        self.filtercol = None
+        self.filtercolvalue = None
+        self._valsbox = None
+
         if activated:
             self.activate()
         return
-        
+
     def activate(self):
         self._cbutton.configure(text="-", command=self.close)
         self._label.destroy()
@@ -191,38 +215,38 @@ class FilterBar(Frame):
         self.activated = True
         return
 
-    def actioncallback(self, id, event):
+    def actioncallback(self, id_, event):
         changed = False
-        if id == 0: # booleanop
+        if id_ == 0: # booleanop
             changed = self._booleanselected != self.booleanop.get()
             self._booleanselected = self.booleanop.get()
-        elif id == 1: # column
+        elif id_ == 1: # column
             changed = self._columnselected != self.filtercol.get()
-            if changed: 
+            if changed:
                 old = self._columnselected
                 self._columnselected = self.filtercol.get()
                 self.switchOperatorSet(oldOperator=old)
-        elif id == 2: # operator
+        elif id_ == 2: # operator
             changed = self._operatorselected != self.operator.get()
             self._operatorselected = self.operator.get()
-        elif id == 3: # value
+        elif id_ == 3: # value
             changed = self._valueselected != self.filtercolvalue.get()
             self._valueselected = self.filtercolvalue.get()
 
         if changed:
-            self.filterframe._triggerFiltering(self.index)
+            self.filterframe.triggerFiltering(self.index)
         return
-    
+
     def isValid(self):
         return self.activated and self._columnselected is not None and self._operatorselected is not None and self._valueselected is not None and len(self._valueselected) > 0
 
     def switchOperatorSet(self, oldOperator=None):
-        type = self.filterframe.getFieldType(self._columnselected)
+        type_ = self.filterframe.getFieldType(self._columnselected)
         if oldOperator is not None:
             oldtype = self.filterframe.getFieldType(oldOperator)
-            if type == oldtype:
+            if type_ == oldtype:
                 return
-        ops = getOperators(type)
+        ops = getOperators(type_)
         self._operatormenu.configure(values=ops)
         if len(ops) > 0:
             self.operator.set(ops[0])
@@ -236,7 +260,7 @@ class FilterBar(Frame):
         """Destroy and remove from parent"""
         self.filterframe.filters.remove(self)
         self.destroy()
-        self.filterframe._triggerFiltering()
+        self.filterframe.triggerFiltering()
         return
 
 

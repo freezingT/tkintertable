@@ -1,3 +1,6 @@
+""""
+Provide button panel to allow navigation in the MultipageTable.
+"""
 import tkinter as tk
 from tkinter import Frame, Button
 from tkinter import font
@@ -30,20 +33,20 @@ class NavigationPanel(Frame):
 
     def updateN(self, newN):
         newN = max(0, newN) # ensure newN >= 0
-        self._nPages = int(max(1, np.ceil(newN/self._nPerPage))) 
+        self._nPages = int(max(1, np.ceil(newN/self._nPerPage)))
         self._N = newN
         self._nIntermButtons = int(max(1, min(self._nPages, self._maxNIntermediateButtons)))
-        
+
         self.updateButtons()
         self.__changeIdx(0)
-        
+
         return
 
     def updateButtons(self):
         if self._b_First is None:
             self._b_First = Button(self, text="<<", command=partial(self._button_callback, -1))
             self._b_First.pack(side=tk.LEFT)
-            
+
             self._b_Previous = Button(self, text="<", command=partial(self._button_callback, -2))
             self._b_Previous.pack(side=tk.LEFT)
 
@@ -76,10 +79,15 @@ class NavigationPanel(Frame):
         start = self._nPerPage*(self._page_start + self._idx)
         end = min(self._nPerPage*(self._page_start + self._idx + 1), self._N)
         return (start, end)
-    
+
     def __changeIdx(self, newPageIndex):
         changed = False
-        newPageStart = int(max(0, min(self._nPages-self._nIntermButtons, newPageIndex - np.floor(self._nIntermButtons/2))))
+        newPageStart = int(max(0,
+                               min(self._nPages-self._nIntermButtons,
+                                   newPageIndex - np.floor(self._nIntermButtons/2)
+                                   )
+                               )
+                          )
         newIdx = newPageIndex - newPageStart # newButtonIndex
 
         if self._idx != newIdx:
@@ -122,7 +130,11 @@ class NavigationPanel(Frame):
 
     def _createIntermediateButtons(self):
         for i in range(self._maxNIntermediateButtons):
-            button = Button(self, text=str(i+1), font=self._f_normal, command=partial(self._button_callback, i))
+            button = Button(self,
+                            text=str(i+1),
+                            font=self._f_normal,
+                            command=partial(self._button_callback, i)
+                            )
             if i==0:
                 button.configure(font=self._f_selected)
             button.bind("<Enter>", self._button_callback_mouse_enter)
@@ -150,4 +162,3 @@ class NavigationPanel(Frame):
             self._b_Next.pack(side=tk.LEFT)
             self._b_Last.pack(side=tk.LEFT)
         return
-    

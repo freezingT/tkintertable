@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
     Module implements Table filtering and searching functionality.
     Created Oct 2008
@@ -23,7 +22,7 @@ from __future__ import absolute_import, division, print_function
 try:
     from tkinter import IntVar, StringVar
     from tkinter.ttk import Frame, Button, Label, Combobox, Entry
-except ModuleNotFoundError:
+except ImportError:
     from Tkinter import IntVar, StringVar
     from ttk import Frame, Button, Label, Combobox, Entry
 

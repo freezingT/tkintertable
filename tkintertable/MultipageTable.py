@@ -1,16 +1,45 @@
-
+"""
+Provide functionality for a table that spans multiple pages accessible via buttons at the bottom.
+"""
+import tkinter as tk
 from tkinter import Frame
-from .FilterPanel import FilterPanel
-from .CellContentOperators import doFiltering
 from operator import itemgetter
+from typing import Union, Callable
 import pandas
 
+from .CellContentOperators import doFiltering
 from .Tables import TableCanvas
 from .NavigationPanel import NavigationPanel
+from .MultipageData import parse_data
 
 class MultipageTable(Frame):
-    def __init__(self, parent, data, columnTitles, dataparam=(), nPerPage=100, fieldtypes=None, dataconstructors={}, filterdialogfactory=None):
-        """ 
+    """
+    Create table that spans multiple pages accessible via buttons at the bottom.
+    Args:
+        parent:
+        data:
+        columnTitles:
+        dataparam:
+        nPerPage:
+        fieldtypes:
+        dataParserCallback:     function called by the dataparser to give
+                                feedback on progress. Input is the progress
+                                indicated by a number between 0 and 1.
+        dataconstructors:
+        filterdialogfactory:
+    """
+    def __init__(self,
+                 parent: tk.Tk,
+                 data,
+                 columnTitles,
+                 dataparam: Union[tuple, None]=None,
+                 nPerPage=100,
+                 fieldtypes=None,
+                 dataParserCallback: Union[Callable[float, None], None]=None,
+                 dataconstructors: Union[dict, None]=None,
+                 filterdialogfactory:Union[Callable, None]=None
+                 ):
+        """
         Table that displays its rows on multiple pages. Navigation is possible using buttons at the bottom.
 
         Args:
@@ -20,22 +49,30 @@ class MultipageTable(Frame):
         nPerPage (int): how many rows to show per page
         columnTitles (list[str]): list of column labels
         """
-        
         Frame.__init__(self, parent)
         self._outerFrame = Frame(self)
         self._outerFrame.pack(side="top", fill="both", expand=True, anchor="n")
+        if dataconstructors is None:
+            dataconstructors = {}
+        if dataparam is None:
+            dataparam = ()
 
-        [self._data, ndata, self._ncols] = self._parseData(data, datainfo=dataparam, dataconstructors=dataconstructors)
+        [self._data, ndata, self._ncols] = parse_data(
+            data,
+            datainfo=dataparam,
+            dataconstructors=dataconstructors,
+            progresscallback=dataParserCallback,
+            )
         self._filteredData = None
         nrows = 0
 
 
-        self._table = TableCanvas(self._outerFrame, 
-                                  showkeynamesinheader=True, 
-                                  rowheaderwidth=55, 
+        self._table = TableCanvas(self._outerFrame,
+                                  showkeynamesinheader=True,
+                                  rowheaderwidth=55,
                                   read_only=True,
                                   show_popup=True,
-                                  rows=nrows, 
+                                  rows=nrows,
                                   cols=self._ncols,
                                   filterdialogfactory=filterdialogfactory)
         self.__setPopupMenuEntries()
@@ -82,8 +119,9 @@ class MultipageTable(Frame):
         self._table.showPopupMenuEntry = T
 
 
-    def setColumnNames(self, columnTitles): 
-        columnTitles = columnTitles+['']*max(0, self._ncols - len(columnTitles)) # ensure column_data length
+    def setColumnNames(self, columnTitles):
+        # ensure column_data length first
+        columnTitles = columnTitles+['']*max(0, self._ncols - len(columnTitles))
         columnTitles = columnTitles[0:self._ncols]
         self._columnTitles = columnTitles
         for idx, title in enumerate(columnTitles):
@@ -92,7 +130,7 @@ class MultipageTable(Frame):
 
     def getColumnNames(self):
         return self._columnTitles
-    
+
     def getColumnDict(self):
         """ Return the dictionary that maps column labels to column names """
         return {y: x for x, y in self._table.model.columnlabels.items()}
@@ -129,72 +167,27 @@ class MultipageTable(Frame):
     def _changePage(self):
         datrange = self._getPageDataRange()
         rownames = list(map(lambda x: str(x+1), list(range(datrange[0], datrange[1]))))
-        
+
         self._table.deletePopups()
         self._table.requireRowHeightReset()
         if self._filteredData is not None:
-           self.replaceTableData(self._filteredData[datrange[0]:datrange[1]], rownames=rownames)
+            self.replaceTableData(self._filteredData[datrange[0]:datrange[1]], rownames=rownames)
         else:
             self.replaceTableData(self._data[datrange[0]:datrange[1]], rownames=rownames)
         self._table.set_yviews('moveto', 0) # reset view to first line
         return
 
-    def _parseData(self, data, datainfo=(), dataconstructors={}):
-        """
-        Transform the given data into the format described below and return the data in the new format and the number of rows and columns
-
-        Args:
-        data (str or list[list[str]]): given data
-        datainfo (tuple): additional information, depending on input data format
-
-        Return:
-        data (list[dict]): Each element in the list represents a row in the table, the dict gives the cell entries/columns in a specific row
-        ndata (int): number of rows in the table
-        ncols (int): number of columns in the table
-        """
-        if isinstance(data, str) and data.endswith('.csv'):
-            lst = []
-            if len(datainfo) == 0:
-                raise RuntimeError('Datainfo required if data is loaded from csv-file.')
-            else:
-                columntitles = datainfo[0]
-            df = pandas.read_csv(data)
-            for idx, row in df.iterrows():
-                rowdat = {}
-                for idxcol, colname in enumerate(columntitles):
-                    if colname in dataconstructors:
-                        rowdat[str(idxcol+1)] = dataconstructors[colname](row[colname])
-                    else:
-                        rowdat[str(idxcol+1)] = row[colname]
-                lst.append(rowdat)
-            return lst, len(lst), len(columntitles) # return data, ndata, ncols
-        
-        elif isinstance(data, list):
-            if len(data) > 0 and isinstance(data[0], list):
-                clen = len(data[0])
-                lst = []
-                for idx, e in enumerate(data):
-                    rowdat = {}
-                    for idxcol, r in enumerate(e):
-                        rowdat[str(idxcol+1)] = r
-                    lst.append(rowdat)
-                return lst, len(lst), clen
-            
-        else: # TODO other ways to provide data?
-            return [], 0, 0 
-        
-    def __table_setData(self, data, rownames=None):        
+    def __table_setData(self, data, rownames=None):
         #remove unrequired columns:
         if len(data) > 0:
             self._table.model.deleteColumns(list(reversed(range(len(data[0]), self._table.model.getColumnCount()))))
 
+        rname = None
         if rownames is not None:
             self._table.model.deleteRows()
-        else:
-            rname = None
-        nTableRows = self._table.model.getRowCount()
+        n_table_rows = self._table.model.getRowCount()
         for idx, d in enumerate(data):
-            if idx < nTableRows:
+            if idx < n_table_rows:
                 self.__table_replaceRow(d, idx)
             else:
                 if rownames is not None:
@@ -204,7 +197,7 @@ class MultipageTable(Frame):
         # remove unrequired rows:
         self._table.model.deleteRows(list(reversed(range(len(data), self._table.model.getRowCount()))))
         return
-        
+
     def __table_replaceRow(self, dictdata, idx):
         if idx >= self._table.model.getRowCount():
             raise ValueError("Row to be replaced does not exist.")
@@ -249,15 +242,14 @@ class MultipageTable(Frame):
         return n
 
     def filterData(self, filters) -> int:
-        rowids = doFiltering(self.data, self.getColumnDict(), filters)
+        rowids = doFiltering(self._data, self.getColumnDict(), filters)
         n = self._setFilteredData(rowids)
         return n
-    
+
     def triggerSorting(self, doSortCallback):
         """Function that is called when the sorting of the data is triggered."""
         doSortCallback(self._data, self.getColumnDict())
         if self._filteredData is not None:
-            doSortCallback(self._filteredData, self.getColumnDict())        
+            doSortCallback(self._filteredData, self.getColumnDict())
         self._changePage()
         return
-    
